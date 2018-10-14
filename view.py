@@ -1,31 +1,57 @@
 import pyglet
 from pyglet.window import key
 import math
+from model import Model, GameObject
+import pyglet.graphics as graphics
 
 
 class SpaceWindow(pyglet.window.Window):
-
+    WINDOW_WIDTH = 1700
+    WINDOW_HEIGHT = 800
 
     def __init__(self):
-        pass
+        super(SpaceWindow, self).__init__(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+        self.img_base = dict()
+        self.model = Model()
+        self.fps_display = pyglet.clock.ClockDisplay()
+        self.x = 0
+        self.y = 0
 
     def reset(self):
         pass
 
     def on_draw(self):
         window.clear()
-        pass
+        for img in self.model.objects:
+            self.draw_object(img)
+
+    def draw_object(self, obj: GameObject):
+        if obj.img_name not in self.img_base.keys():
+            img_path = "img/" + obj.img_name + '.jpg'
+            stream = open(img_path, 'rb')
+            img = pyglet.image.load(img_path, file=stream)
+            self.img_base[obj.img_name] = img
+        sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name],
+                                        x=self.width * (obj.x / self.model.MODEL_WIDTH),
+                                        y=self.height * (obj.y / self.model.MODEL_HEIGHT))
+        tgt_x = obj.width / self.model.MODEL_WIDTH
+        tgt_y = obj.height / self.model.MODEL_HEIGHT
+        sprite.scale_x = tgt_x * self.width / sprite.width
+        sprite.scale_y = tgt_y * self.height / sprite.height
+        sprite.draw()
 
     def on_key_press(self, symbol, modifiers):
         pass
 
     def on_key_release(self, symbol, modifiers):
-        pass
         if symbol == key.ESCAPE:
             self.close()
+        else:
+            self.model.key_passed(symbol)
 
     def update(self, dt):
-        pass
+        self.model.update()
+
 
 if __name__ == '__main__':
     window = SpaceWindow()
