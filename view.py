@@ -3,7 +3,7 @@ from pyglet.window import key
 import math
 
 
-class BreakoutWindow(pyglet.window.Window):
+class SpaceWindow(pyglet.window.Window):
 
 
     def __init__(self):
@@ -28,7 +28,7 @@ class BreakoutWindow(pyglet.window.Window):
         pass
 
 if __name__ == '__main__':
-    window = BreakoutWindow()
+    window = SpaceWindow()
     pyglet.clock.set_fps_limit(400)
     dt = 1.0 / 60
     pyglet.clock.schedule_interval(window.update, dt)
