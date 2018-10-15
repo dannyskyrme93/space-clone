@@ -5,7 +5,7 @@ class GameObject:
     def __init__(self, x, y, width, height, img_name):
         self.x = x  # x-coordinate from 0 to MODEL_WIDTH
         self.y = y  # y-coordinate from 0 to MODEL_HEIGHT
-        self.img_name = img_name  # file name without folder dir (img) or extension (.pgn, .jpg etc)
+        self.img_name = img_name  # file name without folder dir (img) but with the extension (.pgn, .jpg etc)
         self.width = width
         self.height = height
         self.dx = 0
@@ -31,7 +31,6 @@ class Model:
         self.objects[0].x += self.objects[0].dx
         self.objects[0].y += self.objects[0].dy
 
-    #
     def action(self, key_val: str, action_type: int):
         # action_types integer constants: Press (view.KEY_PRESS), Release (view.KEY_RELEASE)
         # key val are constants defined in pyglet.window.key (as key)
