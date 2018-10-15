@@ -28,7 +28,7 @@ class SpaceWindow(pyglet.window.Window):
 
     def draw_object(self, obj: GameObject):
         if obj.img_name not in self.img_base.keys():
-            img_path = "img/" + obj.img_name + '.jpg'
+            img_path = "img/" + obj.img_name
             stream = open(img_path, 'rb')
             img = pyglet.image.load(img_path, file=stream)
             self.img_base[obj.img_name] = img

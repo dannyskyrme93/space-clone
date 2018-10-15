@@ -12,17 +12,25 @@ class GameObject:
         self.dy = 0
         self.is_active = True
 
+class Monster(GameObject):
+    def __init__(self, x, y, width, height, img_name):
+        super(Monster, self).__init__(x, y, width, height, img_name)
+
+
+
+
 
 class Model:
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
+    PLAYER_SPEED = MODEL_WIDTH / 400
 
     def __init__(self):
         self.objects = [] # list of Game Objects, will automatically draw on screen
 
         # x and y adjusted to screen in view, consider relative to model size
-        self.objects += [GameObject(50, 50, self.MODEL_WIDTH / 3, self.MODEL_HEIGHT / 2, "tom hanks")]
-        self.objects[0].dx = 1  # sets tom hanks pic velocity to right at one pixel per update
+        self.objects += [GameObject(self.MODEL_WIDTH / 2, 0, self.MODEL_WIDTH / 20, self.MODEL_HEIGHT / 10, "x-wing.png")]
+        #self.objects[0].dx = 1  sets tom hanks pic velocity to right at one pixel per update
 
     def update(self):
         # updates the state of the model
@@ -34,13 +42,21 @@ class Model:
     def action(self, key_val: str, action_type: int):
         # action_types integer constants: Press (view.KEY_PRESS), Release (view.KEY_RELEASE)
         # key val are constants defined in pyglet.window.key (as key)
-
         # Sample code which prints messages in reaction to a key press or release
         import view  # avoids circular imports
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
+            if key_val == key.LEFT:
+                self.objects[0].dx -= Model.PLAYER_SPEED
+            elif key_val == key.RIGHT:
+                self.objects[0].dx += Model.PLAYER_SPEED
+
         elif action_type == view.KEY_RELEASE:
             print(key_val, " was released")
-            if key_val == key.SPACE:
+            if key_val == key.LEFT:
+                self.objects[0].dx += Model.PLAYER_SPEED
+            elif key_val == key.RIGHT:
+                self.objects[0].dx -= Model.PLAYER_SPEED
+            elif key_val == key.SPACE:
                 print("Wow! The spacebar has been released")
 
