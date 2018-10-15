@@ -4,6 +4,7 @@ import math
 from model import Model, GameObject
 import pyglet.graphics as graphics
 
+KEY_PRESS, KEY_RELEASE = 0, 1
 
 class SpaceWindow(pyglet.window.Window):
     WINDOW_WIDTH = 1700
@@ -41,13 +42,13 @@ class SpaceWindow(pyglet.window.Window):
         sprite.draw()
 
     def on_key_press(self, symbol, modifiers):
-        pass
+        self.model.action(symbol, KEY_PRESS)
 
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             self.close()
         else:
-            self.model.key_passed(symbol)
+            self.model.action(symbol, KEY_RELEASE)
 
     def update(self, dt):
         self.model.update()
