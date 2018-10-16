@@ -30,15 +30,15 @@ class Model:
         self.objects = [] # list of Game Objects, will automatically draw on screen
 
         # x and y adjusted to screen in view, consider relative to model size
-        self.objects += [GameObject(self.MODEL_WIDTH / 2, 0, self.MODEL_WIDTH / 20, self.MODEL_HEIGHT / 10, "x-wing.png")]
+        self.objects += [GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
 
-        alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT
-        while alien_y > self.MODEL_HEIGHT / 2:
-            alien_x = self.ALIEN_X_OFF
-            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF:
+        alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
+        while alien_y > self.MODEL_HEIGHT / 2:  # Alien y spawn endpoint.
+            alien_x = self.ALIEN_X_OFF * 3  # Alien spawn x starting point.
+            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4:    # Alien x spawn endpoint.
                 self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
-                alien_x += self.ALIEN_WIDTH
-            alien_y -= self.ALIEN_HEIGHT
+                alien_x += self.ALIEN_WIDTH * 1.5
+            alien_y -= self.ALIEN_HEIGHT * 1.3
     def update(self):
         # updates the state of the model
 
