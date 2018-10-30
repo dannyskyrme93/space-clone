@@ -45,29 +45,47 @@ class Model:
             alien_y -= self.ALIEN_HEIGHT * 1.3                              # Next alien spawn in column.
 
     def update(self):
-        # updates the state of the model
+        # updates the state of the model]
+        player = self.objects[0]
         if Model.tick % 60 == 0:
             for obj in self.objects[1:]:
-                obj.x += Model.tick % Model.MODEL_WIDTH/ 10
+                obj.x += Model.MODEL_WIDTH / 40
                 obj.y += obj.dy
+
+        self.objects[0].x += self.objects[0].dx
+        #self.objects[0].y += self.objects[0].dy
+        if player.x == 0:
+            player.dx = 0
+        elif player.x + player.width == Model.MODEL_WIDTH:
+            player.dx = 0
+
         Model.tick += 1
-        self.objects
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
+        player = self.objects[0]
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
-                self.objects[0].dx -= Model.PLAYER_SPEED
+                if player.x == 0:
+                    pass
+                else:
+                    player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                self.objects[0].dx += Model.PLAYER_SPEED
+                if player.x + player.width == Model.MODEL_WIDTH:
+                    pass
+                else:
+                    player.dx += Model.PLAYER_SPEED
 
         elif action_type == view.KEY_RELEASE:
             print(key_val, " was released")
-            if key_val == key.LEFT:
-                self.objects[0].dx += Model.PLAYER_SPEED
-            elif key_val == key.RIGHT:
-                self.objects[0].dx -= Model.PLAYER_SPEED
-            elif key_val == key.SPACE:
-                print("Wow! The spacebar has been released")
+            if player.dx == 0:
+                pass
+            else:
+                if key_val == key.LEFT:
+                    player.dx += Model.PLAYER_SPEED
+                elif key_val == key.RIGHT:
+                    player.dx -= Model.PLAYER_SPEED
+                elif key_val == key.SPACE:
+                    print("Wow! The spacebar has been released")
 

@@ -76,6 +76,17 @@ class SpaceWindow(pyglet.window.Window):
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
 
+    def draw_laser(self, x, y):
+        laser_scope_width = 7
+        laser_scope_height = 60
+        col = (255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0)
+        for i in range(0, 8):
+            ran_x = [random.randint(x, x + laser_scope_width) for j in range(0, 4)]
+            ran_y = [random.randint(y, y + laser_scope_height) for j in range(0, 4)]
+            pts = [ran_x[j // 2] if j % 2 == 0 else ran_y[j // 2] for j in range(0, 8)]
+            graphics.draw(4, graphics.GL_QUADS,
+                          ('v2f', pts),
+                          ('c3B', col))
 
     def update(self, dt):
         self.model.update()
