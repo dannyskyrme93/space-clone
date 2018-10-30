@@ -20,6 +20,7 @@ class Alien(GameObject):
 
 
 class Model:
+    tick = 1
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
     PLAYER_SPEED = MODEL_WIDTH / 400
@@ -36,23 +37,23 @@ class Model:
                                     self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
 
         alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
-        while alien_y > self.MODEL_HEIGHT / 2:  # Alien y spawn endpoint.
-            alien_x = self.ALIEN_X_OFF * 3  # Alien spawn x starting point.
-            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4:    # Alien x spawn endpoint.
+        while alien_y > self.MODEL_HEIGHT / 2:                              # Alien y spawn endpoint.
+            alien_x = self.ALIEN_X_OFF * 3                                  # Alien spawn x starting point.
+            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4:        # Alien x spawn endpoint.
                 self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
-                alien_x += self.ALIEN_WIDTH * 1.5   # Next alien spawn in row.
-            alien_y -= self.ALIEN_HEIGHT * 1.3  # Next alien spawn in column.
+                alien_x += self.ALIEN_WIDTH * 1.5                           # Next alien spawn in row.
+            alien_y -= self.ALIEN_HEIGHT * 1.3                              # Next alien spawn in column.
 
     def update(self):
         # updates the state of the model
-        for obj in self.objects:
-            obj.x += obj.dx
-            obj.y += obj.dy
+        if Model.tick % 60 == 0:
+            for obj in self.objects[1:]:
+                obj.x += Model.tick % Model.MODEL_WIDTH/ 10
+                obj.y += obj.dy
+        Model.tick += 1
+        self.objects
 
     def action(self, key_val: str, action_type: int):
-        # action_types integer constants: Press (view.KEY_PRESS), Release (view.KEY_RELEASE)
-        # key val are constants defined in pyglet.window.key (as key)
-        # Sample code which prints messages in reaction to a key press or release
         import view  # avoids circular imports
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
