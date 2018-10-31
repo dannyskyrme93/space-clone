@@ -18,9 +18,13 @@ class Alien(GameObject):
         super().__init__(x, y, width, height, img_name)
         self.dx = 1
 
+        def alien_movement(self):
+            pass
+
 
 class Model:
     tick = 1
+    ALIEN_MOVE_RIGHT = False
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
     PLAYER_SPEED = MODEL_WIDTH / 400
@@ -28,6 +32,8 @@ class Model:
     ALIEN_HEIGHT = MODEL_HEIGHT / 10
     ALIEN_Y_OFF = MODEL_HEIGHT / 30     # Offset from top of screen.
     ALIEN_X_OFF = MODEL_WIDTH / 40    # Offset from side of screen.
+    BOX_START = ALIEN_X_OFF * 3
+    BOX_END = MODEL_WIDTH - MODEL_WIDTH / 8
 
     def __init__(self):
         self.objects = []   # list of Game Objects, will automatically draw on screen
@@ -36,22 +42,47 @@ class Model:
 
         alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
         while alien_y > self.MODEL_HEIGHT / 2:                              # Alien y spawn endpoint.
-            alien_x = self.ALIEN_X_OFF * 3                                  # Alien spawn x starting point.
+            alien_x = self.BOX_START                                  # Alien spawn x starting point.
             while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4:        # Alien x spawn endpoint.
                 self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
                 alien_x += self.ALIEN_WIDTH * 1.5                           # Next alien spawn in row.
+                print(alien_x + Model.ALIEN_WIDTH)
             alien_y -= self.ALIEN_HEIGHT * 1.3                              # Next alien spawn in column.
 
     def update(self):
-        # updates the state of the model]
         player = self.objects[0]
         if Model.tick % 60 == 0:
-            for obj in self.objects[1:]:
-                obj.x += Model.MODEL_WIDTH / 40
-                obj.y += obj.dy
+            #if box end reaches right edge of screen
+                #pass
+            if Model.ALIEN_MOVE_RIGHT:
+                Model.BOX_START += Model.MODEL_WIDTH / 40
+                Model.BOX_END += Model.MODEL_WIDTH / 40
+                if Model.BOX_END >= Model.MODEL_WIDTH:
+                    pass #TODO
+                for obj in self.objects[1:]:
+                    obj.x += Model.MODEL_WIDTH / 40
 
-        self.objects[0].x += self.objects[0].dx
-        #self.objects[0].y += self.objects[0].dy
+            if not Model.ALIEN_MOVE_RIGHT:
+                Model.BOX_START -= Model.MODEL_WIDTH / 40
+                Model.BOX_END -= Model.MODEL_WIDTH / 40
+                if Model.BOX_START <= 0:
+                    print('Holy jamoley!')
+                    for obj in self.objects[1:]:
+                        obj.dx = 0
+                        obj.y -= Model.ALIEN_HEIGHT
+                    Model.ALIEN_MOVE_RIGHT = not Model.ALIEN_MOVE_RIGHT
+                else:
+                    for obj in self.objects[1:]:
+                        obj.x -= Model.MODEL_WIDTH / 40
+
+        if abs(player.dx) > Model.PLAYER_SPEED:
+            if player.dx < 0:
+                player.dx = -Model.PLAYER_SPEED
+            elif player.dx > 0:
+                player.dx = Model.PLAYER_SPEED
+        player.x += player.dx
+        #player.y += player.dy
+
         if player.x <= 0:
             if player.dx == 0:
                 pass
@@ -72,12 +103,12 @@ class Model:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
                 if player.x <= 0 and player.dx != 0:
-                    pass
+                    player.x = 0
                 else:
                     player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 if player.x + player.width >= Model.MODEL_WIDTH and player.dx != 0:
-                    pass
+                    player.x = Model.MODEL_WIDTH - player.width
                 else:
                     player.dx += Model.PLAYER_SPEED
 
@@ -85,12 +116,12 @@ class Model:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
                 if player.x <= 0:
-                    pass
+                    player.x = 0
                 else:
                     player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 if player.x + player.width >= Model.MODEL_WIDTH:
-                    pass
+                    player.x = Model.MODEL_WIDTH - player.width
                 else:
                     player.dx -= Model.PLAYER_SPEED
             elif key_val == key.SPACE:
