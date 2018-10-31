@@ -20,31 +20,36 @@ class SpaceWindow(pyglet.window.Window):
         self.y = 0
         self.flame_colours = []
         self.reset_flame_colours()
+        self.batch = graphics.Batch()
+        self.rendered_sprite = []
 
     def reset(self):
         pass
 
     def on_draw(self):
+        self.batch = graphics.Batch()
         window.clear()
-        for img in self.model.objects:
-            self.draw_object(img)
+        self.rendered_sprite = []
+        for obj in self.model.objects:
+            if obj.img_name not in self.img_base.keys():
+                img_path = "img/" + obj.img_name
+                stream = open(img_path, 'rb')
+                img = pyglet.image.load(img_path, file=stream)
+                self.img_base[obj.img_name] = img
+            sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
+            sprite.x = self.width * (obj.x / self.model.MODEL_WIDTH)
+            sprite.y = self.height * (obj.y / self.model.MODEL_HEIGHT)
 
-    def draw_object(self, obj: GameObject):
-        if obj.img_name not in self.img_base.keys():
-            img_path = "img/" + obj.img_name
-            stream = open(img_path, 'rb')
-            img = pyglet.image.load(img_path, file=stream)
-            self.img_base[obj.img_name] = img
-        sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name],
-                                        x=self.width * (obj.x / self.model.MODEL_WIDTH),
-                                        y=self.height * (obj.y / self.model.MODEL_HEIGHT))
-        tgt_x = obj.width / self.model.MODEL_WIDTH
-        tgt_y = obj.height / self.model.MODEL_HEIGHT
-        sprite.scale_x = tgt_x * self.width / sprite.width
-        sprite.scale_y = tgt_y * self.height / sprite.height
-        sprite.draw()
+            tgt_x = obj.width / self.model.MODEL_WIDTH
+            tgt_y = obj.height / self.model.MODEL_HEIGHT
+            sprite.scale_x = tgt_x * self.width / sprite.width
+            sprite.scale_y = tgt_y * self.height / sprite.height
+            self.rendered_sprite.append(sprite)
+
         ship = self.model.objects[0]
-        self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width), self.to_screen_y(ship.height))
+        self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
+                        self.to_screen_y(ship.height))
+        self.batch.draw()
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
