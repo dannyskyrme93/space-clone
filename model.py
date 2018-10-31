@@ -31,8 +31,6 @@ class Model:
 
     def __init__(self):
         self.objects = []   # list of Game Objects, will automatically draw on screen
-
-        # x and y adjusted to screen in view, consider relative to model size
         self.objects += [GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                     self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
 
@@ -54,38 +52,47 @@ class Model:
 
         self.objects[0].x += self.objects[0].dx
         #self.objects[0].y += self.objects[0].dy
-        if player.x == 0:
-            player.dx = 0
-        elif player.x + player.width == Model.MODEL_WIDTH:
-            player.dx = 0
-
+        if player.x <= 0:
+            if player.dx == 0:
+                pass
+            else:
+                player.dx = 0
+        elif player.x + player.width >= Model.MODEL_WIDTH:
+            if player.dx == 0:
+                pass
+            else:
+                player.dx = 0
         Model.tick += 1
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
         player = self.objects[0]
+
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
-                if player.x == 0:
+                if player.x <= 0 and player.dx != 0:
                     pass
                 else:
                     player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if player.x + player.width == Model.MODEL_WIDTH:
+                if player.x + player.width >= Model.MODEL_WIDTH and player.dx != 0:
                     pass
                 else:
                     player.dx += Model.PLAYER_SPEED
 
-        elif action_type == view.KEY_RELEASE:
-            print(key_val, " was released")
-            if player.dx == 0:
-                pass
-            else:
-                if key_val == key.LEFT:
+        if action_type == view.KEY_RELEASE:
+            print(key_val, " was pressed")
+            if key_val == key.LEFT:
+                if player.x <= 0:
+                    pass
+                else:
                     player.dx += Model.PLAYER_SPEED
-                elif key_val == key.RIGHT:
+            elif key_val == key.RIGHT:
+                if player.x + player.width >= Model.MODEL_WIDTH:
+                    pass
+                else:
                     player.dx -= Model.PLAYER_SPEED
-                elif key_val == key.SPACE:
-                    print("Wow! The spacebar has been released")
+            elif key_val == key.SPACE:
+                print("Wow! The spacebar has been released")
 
