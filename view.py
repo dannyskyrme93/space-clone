@@ -4,12 +4,15 @@ import math
 from model import Model, GameObject
 import pyglet.graphics as graphics
 import random
+import simpleaudio as sa
 
 KEY_PRESS, KEY_RELEASE = 0, 1
 
 class SpaceWindow(pyglet.window.Window):
     WINDOW_WIDTH = 1700
     WINDOW_HEIGHT = 800
+    SOUND_NAMES = ["laser_default"]
+    TEST_SOUND_ON = False
 
     def __init__(self):
         super(SpaceWindow, self).__init__(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
@@ -22,11 +25,17 @@ class SpaceWindow(pyglet.window.Window):
         self.reset_flame_colours()
         self.batch = graphics.Batch()
         self.rendered_sprite = []
+        self.tick = 0
+        self.sounds = {}
+        self.load_sounds()
+
 
     def reset(self):
         pass
 
     def on_draw(self):
+        if self.tick % 1000 == 0 and self.TEST_SOUND_ON:
+            play_obj = self.sounds["laser_default"].play()
         self.batch = graphics.Batch()
         window.clear()
         self.rendered_sprite = []
@@ -50,6 +59,8 @@ class SpaceWindow(pyglet.window.Window):
         self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                         self.to_screen_y(ship.height))
         self.batch.draw()
+
+        self.tick += 1
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
@@ -114,6 +125,9 @@ class SpaceWindow(pyglet.window.Window):
         self.flame_colours.append(tuple([255, 255, 255, 0, 0, blue_val_1,
                                  0, 0, blue_val_2, 255, 255, 255]))
 
+    def load_sounds(self):
+        for name in self.SOUND_NAMES:
+            self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
 
 if __name__ == '__main__':
     window = SpaceWindow()
