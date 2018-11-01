@@ -24,6 +24,7 @@ class Alien(GameObject):
 
 class Model:
     tick = 1
+    tick_speed = 60
     ALIEN_MOVE_RIGHT = False
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
@@ -32,8 +33,9 @@ class Model:
     ALIEN_HEIGHT = MODEL_HEIGHT / 10
     ALIEN_Y_OFF = MODEL_HEIGHT / 30     # Offset from top of screen.
     ALIEN_X_OFF = MODEL_WIDTH / 40    # Offset from side of screen.
-    BOX_START = ALIEN_X_OFF * 3
-    BOX_END = MODEL_WIDTH - MODEL_WIDTH / 8
+    BOX_START = ALIEN_X_OFF * 3                 # Box keeps track of alien block start and end point for edge detection
+    BOX_END = MODEL_WIDTH - MODEL_WIDTH / 10    # Box end found using final alien spawn x pos + ALIEN_WIDTH taken from
+                                                # Window width, final alien x pos found with print statements.
 
     def __init__(self):
         self.objects = []   # list of Game Objects, will automatically draw on screen
@@ -51,18 +53,23 @@ class Model:
 
     def update(self):
         player = self.objects[0]
-        if Model.tick % 60 == 0:
+        if Model.tick % Model.tick_speed == 0:
             #if box end reaches right edge of screen
                 #pass
             if Model.ALIEN_MOVE_RIGHT:
                 Model.BOX_START += Model.MODEL_WIDTH / 40
                 Model.BOX_END += Model.MODEL_WIDTH / 40
                 if Model.BOX_END >= Model.MODEL_WIDTH:
-                    pass #TODO
-                for obj in self.objects[1:]:
-                    obj.x += Model.MODEL_WIDTH / 40
+                    print('Deadly Jamedley')
+                    for obj in self.objects[1:]:
+                        obj.dx = 0
+                        obj.y -= Model.ALIEN_HEIGHT
+                    Model.ALIEN_MOVE_RIGHT = not Model.ALIEN_MOVE_RIGHT
+                else:
+                    for obj in self.objects[1:]:
+                        obj.x += Model.MODEL_WIDTH / 40
 
-            if not Model.ALIEN_MOVE_RIGHT:
+            elif not Model.ALIEN_MOVE_RIGHT:
                 Model.BOX_START -= Model.MODEL_WIDTH / 40
                 Model.BOX_END -= Model.MODEL_WIDTH / 40
                 if Model.BOX_START <= 0:
