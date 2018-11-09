@@ -142,6 +142,6 @@ class Model:
                     self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.SPACE:
                 print("Wow! The spacebar has been released")
-                self.bullets += [self.player.x + self.player.width / 2, self.player.y + self.player.height]
+                self.bullets += [[self.player.x + self.player.width / 2, self.player.y + self.player.height]]
                 print(self.bullets)
 

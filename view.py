@@ -58,9 +58,17 @@ class SpaceWindow(pyglet.window.Window):
         ship = self.model.objects[0]
         self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                         self.to_screen_y(ship.height))
+        for bullet in self.model.bullets:
+            graphics.draw(2, graphics.GL_LINES,
+                          ('v2f', [self.to_screen_x(bullet[0]),
+                                   self.to_screen_y(bullet[1]),
+                                   self.to_screen_x(bullet[0]),
+                                   self.to_screen_y(bullet[1] + 50)]))
         self.batch.draw()
 
         self.tick += 1
+
+
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
