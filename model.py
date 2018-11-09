@@ -39,6 +39,9 @@ class Model:
         self.tick = 1
         self.ALIEN_MOVE_RIGHT = False
         self.bullets = []
+        self.bullet_max = 4
+        self.bullet_height = 30
+        self.bullet_dy = 4
         self.objects = []   # list of Game Objects, will automatically draw on screen
         self.objects += [GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                     self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
@@ -109,6 +112,13 @@ class Model:
         self.player.x += self.player.dx
         #player.y += player.dy
 
+        for obj in self.bullets:
+            obj[1] += self.bullet_dy
+            if obj[1] >= Model.MODEL_HEIGHT:
+                self.bullets.remove(obj)
+                print(self.bullets)
+
+
         self.player_edge_det()
         self.tick += 1
 
@@ -119,29 +129,28 @@ class Model:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
                 if self.player.x <= 0 and self.player.dx != 0:
-                    self.player.x = 0
+                    pass
                 else:
                     self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx != 0:
-                    self.player.x = Model.MODEL_WIDTH - self.player.width
+                    pass
                 else:
                     self.player.dx += Model.PLAYER_SPEED
+            elif key_val == key.SPACE:
+                print("Wow! The spacebar has been pressed")
+                if len(self.bullets) < self.bullet_max:
+                    self.bullets += [[self.player.x + self.player.width / 2, self.player.y + self.player.height]]
 
         if action_type == view.KEY_RELEASE:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
                 if self.player.x <= 0:
-                    self.player.x = 0
+                    pass
                 else:
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH:
-                    self.player.x = Model.MODEL_WIDTH - self.player.width
+                    pass
                 else:
                     self.player.dx -= Model.PLAYER_SPEED
-            elif key_val == key.SPACE:
-                print("Wow! The spacebar has been released")
-                self.bullets += [[self.player.x + self.player.width / 2, self.player.y + self.player.height]]
-                print(self.bullets)
-
