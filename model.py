@@ -23,24 +23,27 @@ class Alien(GameObject):
 
 
 class Model:
-    tick = 1
     tick_speed = 60
-    ALIEN_MOVE_RIGHT = False
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
     PLAYER_SPEED = MODEL_WIDTH / 400
     ALIEN_WIDTH = MODEL_WIDTH / 20
     ALIEN_HEIGHT = MODEL_HEIGHT / 10
     ALIEN_Y_OFF = MODEL_HEIGHT / 30     # Offset from top of screen.
-    ALIEN_X_OFF = MODEL_WIDTH / 40    # Offset from side of screen.
+    ALIEN_X_OFF = MODEL_WIDTH / 40      # Offset from side of screen.
     BOX_START = ALIEN_X_OFF * 3                 # Box keeps track of alien block start and end point for edge detection
     BOX_END = MODEL_WIDTH - MODEL_WIDTH / 10    # Box end found using final alien spawn x pos + ALIEN_WIDTH taken from
                                                 # Window width, final alien x pos found with print statements.
 
     def __init__(self):
+        self.tick = 1
+        self.ALIEN_MOVE_RIGHT = False
+        self.bullets = []
         self.objects = []   # list of Game Objects, will automatically draw on screen
         self.objects += [GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                     self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
+        self.player = self.objects[0]
+        print(self.player.__dict__)
 
         alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
         while alien_y > self.MODEL_HEIGHT / 2:                              # Alien y spawn endpoint.
@@ -51,86 +54,94 @@ class Model:
                 print(alien_x + Model.ALIEN_WIDTH)
             alien_y -= self.ALIEN_HEIGHT * 1.3                              # Next alien spawn in column.
 
+    def alien_update(self):
+        if self.ALIEN_MOVE_RIGHT:
+            Model.BOX_START += Model.MODEL_WIDTH / 40
+            Model.BOX_END += Model.MODEL_WIDTH / 40
+            if Model.BOX_END >= Model.MODEL_WIDTH:
+                print('Deadly Jamedley')
+                for obj in self.objects[1:]:
+                    obj.dx = 0
+                    obj.y -= Model.ALIEN_HEIGHT
+                    self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
+            else:
+                for obj in self.objects[1:]:
+                    obj.x += Model.MODEL_WIDTH / 40
+
+        elif not self.ALIEN_MOVE_RIGHT:
+            Model.BOX_START -= Model.MODEL_WIDTH / 40
+            Model.BOX_END -= Model.MODEL_WIDTH / 40
+            if Model.BOX_START <= 0:
+                print('Holy jamoley!')
+                for obj in self.objects[1:]:
+                    obj.dx = 0
+                    obj.y -= Model.ALIEN_HEIGHT
+                    self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
+            else:
+                for obj in self.objects[1:]:
+                    obj.x -= Model.MODEL_WIDTH / 40
+
+    def player_edge_det(self):
+        if self.player.x <= 0:
+            if self.player.dx == 0:    # Stops infinite dx = 0 at edges
+                pass
+            else:
+                self.player.dx = 0
+        elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
+            if self.player.dx == 0:
+                pass
+            else:
+                self.player.dx = 0
+
+    def player_speed_trunc(self):
+        if self.player.dx < 0:
+            self.player.dx = -Model.PLAYER_SPEED
+        elif self.player.dx > 0:
+            self.player.dx = Model.PLAYER_SPEED
+
     def update(self):
-        player = self.objects[0]
-        if Model.tick % Model.tick_speed == 0:
-            #if box end reaches right edge of screen
-                #pass
-            if Model.ALIEN_MOVE_RIGHT:
-                Model.BOX_START += Model.MODEL_WIDTH / 40
-                Model.BOX_END += Model.MODEL_WIDTH / 40
-                if Model.BOX_END >= Model.MODEL_WIDTH:
-                    print('Deadly Jamedley')
-                    for obj in self.objects[1:]:
-                        obj.dx = 0
-                        obj.y -= Model.ALIEN_HEIGHT
-                    Model.ALIEN_MOVE_RIGHT = not Model.ALIEN_MOVE_RIGHT
-                else:
-                    for obj in self.objects[1:]:
-                        obj.x += Model.MODEL_WIDTH / 40
+        if self.tick % Model.tick_speed == 0:
+            self.alien_update()
 
-            elif not Model.ALIEN_MOVE_RIGHT:
-                Model.BOX_START -= Model.MODEL_WIDTH / 40
-                Model.BOX_END -= Model.MODEL_WIDTH / 40
-                if Model.BOX_START <= 0:
-                    print('Holy jamoley!')
-                    for obj in self.objects[1:]:
-                        obj.dx = 0
-                        obj.y -= Model.ALIEN_HEIGHT
-                    Model.ALIEN_MOVE_RIGHT = not Model.ALIEN_MOVE_RIGHT
-                else:
-                    for obj in self.objects[1:]:
-                        obj.x -= Model.MODEL_WIDTH / 40
+        if abs(self.player.dx) > Model.PLAYER_SPEED:
+            self.player_speed_trunc()
 
-        if abs(player.dx) > Model.PLAYER_SPEED:
-            if player.dx < 0:
-                player.dx = -Model.PLAYER_SPEED
-            elif player.dx > 0:
-                player.dx = Model.PLAYER_SPEED
-        player.x += player.dx
+        self.player.x += self.player.dx
         #player.y += player.dy
 
-        if player.x <= 0:
-            if player.dx == 0:
-                pass
-            else:
-                player.dx = 0
-        elif player.x + player.width >= Model.MODEL_WIDTH:
-            if player.dx == 0:
-                pass
-            else:
-                player.dx = 0
-        Model.tick += 1
+        self.player_edge_det()
+        self.tick += 1
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
-        player = self.objects[0]
 
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
-                if player.x <= 0 and player.dx != 0:
-                    player.x = 0
+                if self.player.x <= 0 and self.player.dx != 0:
+                    self.player.x = 0
                 else:
-                    player.dx -= Model.PLAYER_SPEED
+                    self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if player.x + player.width >= Model.MODEL_WIDTH and player.dx != 0:
-                    player.x = Model.MODEL_WIDTH - player.width
+                if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx != 0:
+                    self.player.x = Model.MODEL_WIDTH - self.player.width
                 else:
-                    player.dx += Model.PLAYER_SPEED
+                    self.player.dx += Model.PLAYER_SPEED
 
         if action_type == view.KEY_RELEASE:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
-                if player.x <= 0:
-                    player.x = 0
+                if self.player.x <= 0:
+                    self.player.x = 0
                 else:
-                    player.dx += Model.PLAYER_SPEED
+                    self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if player.x + player.width >= Model.MODEL_WIDTH:
-                    player.x = Model.MODEL_WIDTH - player.width
+                if self.player.x + self.player.width >= Model.MODEL_WIDTH:
+                    self.player.x = Model.MODEL_WIDTH - self.player.width
                 else:
-                    player.dx -= Model.PLAYER_SPEED
+                    self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.SPACE:
                 print("Wow! The spacebar has been released")
+                self.bullets += [self.player.x + self.player.width / 2, self.player.y + self.player.height]
+                print(self.bullets)
 
