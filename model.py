@@ -42,9 +42,10 @@ class Model:
         self.bullet_max = 4
         self.bullet_height = 30
         self.bullet_dy = 4
+        self.shoot_count = True
         self.objects = []   # list of Game Objects, will automatically draw on screen
-        self.objects += [GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
-                                    self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")]
+        self.objects.append(GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
+                                       self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png"))
         self.player = self.objects[0]
         print(self.player.__dict__)
 
@@ -117,14 +118,14 @@ class Model:
             if obj[1] >= Model.MODEL_HEIGHT:
                 self.bullets.remove(obj)
                 print(self.bullets)
-
-
         self.player_edge_det()
         self.tick += 1
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
-
+        x1_ship = self.player.width / 32
+        x2_ship = self.player.width / float(1.04065)
+        y_ship = self.player.height / 1.6
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
@@ -140,10 +141,15 @@ class Model:
             elif key_val == key.SPACE:
                 print("Wow! The spacebar has been pressed")
                 if len(self.bullets) < self.bullet_max:
-                    self.bullets += [[self.player.x + self.player.width / 2, self.player.y + self.player.height]]
+                    if self.shoot_count:
+                        self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
+                        self.shoot_count = not self.shoot_count
+                    elif not self.shoot_count:
+                        self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
+                        self.shoot_count = not self.shoot_count
 
         if action_type == view.KEY_RELEASE:
-            print(key_val, " was pressed")
+            print(f"{key_val} was pressed")
             if key_val == key.LEFT:
                 if self.player.x <= 0:
                     pass
