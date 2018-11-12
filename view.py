@@ -9,18 +9,18 @@ import simpleaudio as sa
 KEY_PRESS, KEY_RELEASE = 0, 1
 
 class SpaceWindow(pyglet.window.Window):
-    WINDOW_WIDTH = 1700
-    WINDOW_HEIGHT = 800
+    MAIN_WIDTH = 1700
+    MAIN_HEIGHT = 800
+    HEADER_HEIGHT = 50
     SOUND_NAMES = ["laser_default"]
     TEST_SOUND_ON = False
 
     def __init__(self):
-        super(SpaceWindow, self).__init__(self.WINDOW_WIDTH, self.WINDOW_HEIGHT)
+        super(SpaceWindow, self).__init__(self.MAIN_WIDTH, self.MAIN_HEIGHT + self.HEADER_HEIGHT)
         self.img_base = dict()
         self.model = Model()
         self.fps_display = pyglet.clock.ClockDisplay()
-        self.x = 0
-        self.y = 0
+        self.set_location(50, 50)
         self.flame_colours = []
         self.reset_flame_colours()
         self.batch = graphics.Batch()
@@ -46,29 +46,23 @@ class SpaceWindow(pyglet.window.Window):
                 img = pyglet.image.load(img_path, file=stream)
                 self.img_base[obj.img_name] = img
             sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
-            sprite.x = self.width * (obj.x / self.model.MODEL_WIDTH)
-            sprite.y = self.height * (obj.y / self.model.MODEL_HEIGHT)
+            sprite.x = self.MAIN_WIDTH * (obj.x / self.model.MODEL_WIDTH)
+            sprite.y = self.MAIN_HEIGHT * (obj.y / self.model.MODEL_HEIGHT)
 
             tgt_x = obj.width / self.model.MODEL_WIDTH
             tgt_y = obj.height / self.model.MODEL_HEIGHT
-            sprite.scale_x = tgt_x * self.width / sprite.width
+            sprite.scale_x = tgt_x * self.MAIN_WIDTH / sprite.width
             sprite.scale_y = tgt_y * self.height / sprite.height
             self.rendered_sprite.append(sprite)
 
         ship = self.model.objects[0]
         self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                         self.to_screen_y(ship.height))
-        for bullet in self.model.bullets:
-            graphics.draw(2, graphics.GL_LINES,
-                          ('v2f', [self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1]),
-                                   self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1] + self.to_screen_y(self.model.bullet_height))]))
+        self.draw_lasers()
+        self.draw_header()
         self.batch.draw()
 
         self.tick += 1
-
-
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
@@ -100,26 +94,41 @@ class SpaceWindow(pyglet.window.Window):
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
 
-    def draw_laser(self, x, y):
-        laser_scope_width = 7
-        laser_scope_height = 60
-        col = (255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0)
-        for i in range(0, 8):
-            ran_x = [random.randint(x, x + laser_scope_width) for j in range(0, 4)]
-            ran_y = [random.randint(y, y + laser_scope_height) for j in range(0, 4)]
-            pts = [ran_x[j // 2] if j % 2 == 0 else ran_y[j // 2] for j in range(0, 8)]
-            graphics.draw(4, graphics.GL_QUADS,
-                          ('v2f', pts),
-                          ('c3B', col))
+    def draw_lasers(self):
+        for bullet in self.model.bullets:
+            graphics.draw(2, graphics.GL_LINES,
+                          ('v2f', [self.to_screen_x(bullet[0]),
+                                   self.to_screen_y(bullet[1]),
+                                   self.to_screen_x(bullet[0]),
+                                   self.to_screen_y(bullet[1] + self.to_screen_y(self.model.bullet_height))]))
+
+    def draw_header(self):
+        colors = [0, 0, 0, 13, 22, 48, 13, 22, 48, 0, 0, 0]
+        graphics.draw(4, graphics.GL_QUADS, ('v2f', [0, self.MAIN_HEIGHT,
+                                                     0, self.MAIN_HEIGHT + self.HEADER_HEIGHT,
+                                                     self.MAIN_WIDTH, self.MAIN_HEIGHT + self.HEADER_HEIGHT,
+                                                     self.MAIN_WIDTH, self.MAIN_HEIGHT]), ('c3b', colors))
+        graphics.draw(2, graphics.GL_LINES, ('v2f', [0, self.MAIN_HEIGHT,
+                                                     self.MAIN_WIDTH, self.MAIN_HEIGHT]))
+        pyglet.font.add_file('res/8-BIT WONDER.ttf')
+        bit_font = pyglet.font.load('8Bit Wonder')
+        self.lbl = pyglet.text.Label("Enemies Remaining:",
+                                     font_name='8Bit Wonder',
+                                     font_size=28,
+                                     width=self.MAIN_WIDTH, height=self.HEADER_HEIGHT,
+                                     x=self.MAIN_WIDTH // 40, y=self.MAIN_HEIGHT,
+                                     anchor_x='left', anchor_y='bottom',
+                                     color=(255, 255, 255, 255))
+        self.lbl.draw()
 
     def update(self, dt):
         self.model.update()
 
     def to_screen_x(self, mod_x: list):
-        return self.WINDOW_WIDTH * (mod_x / self.model.MODEL_WIDTH)
+        return self.MAIN_WIDTH * (mod_x / self.model.MODEL_WIDTH)
 
     def to_screen_y(self, mod_y: list):
-        return self.WINDOW_HEIGHT * (mod_y / self.model.MODEL_HEIGHT)
+        return self.MAIN_HEIGHT * (mod_y / self.model.MODEL_HEIGHT)
 
     def reset_flame_colours(self):
         self.flame_colours = []
