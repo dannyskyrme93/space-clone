@@ -63,7 +63,7 @@ class SpaceWindow(pyglet.window.Window):
                           ('v2f', [self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1]),
                                    self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1] + 50)]))
+                                   self.to_screen_y(bullet[1] + self.to_screen_y(self.model.bullet_height))]))
         self.batch.draw()
 
         self.tick += 1
