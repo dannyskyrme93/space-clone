@@ -5,6 +5,7 @@ from model import Model, GameObject
 import pyglet.graphics as graphics
 import random
 import simpleaudio as sa
+import numpy as np
 
 KEY_PRESS, KEY_RELEASE = 0, 1
 
@@ -28,14 +29,16 @@ class SpaceWindow(pyglet.window.Window):
         self.tick = 0
         self.sounds = {}
         self.load_sounds()
-
+        self.blood_spatters = []
 
     def reset(self):
         pass
 
     def on_draw(self):
-        if self.tick % 1000 == 0 and self.TEST_SOUND_ON:
+        if self.tick % 5000 == 0 and self.TEST_SOUND_ON:
             play_obj = self.sounds["laser_default"].play()
+        if self.tick % 100 == 0:
+            self.trigger_blood_spatter(random.randint(0, self.MAIN_WIDTH), random.randint(0, self.MAIN_HEIGHT))
         self.batch = graphics.Batch()
         window.clear()
         self.rendered_sprite = []
@@ -59,6 +62,7 @@ class SpaceWindow(pyglet.window.Window):
         self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                         self.to_screen_y(ship.height))
         self.draw_lasers()
+        self.draw_blood_spatters()
         self.draw_header()
         self.batch.draw()
 
@@ -93,6 +97,27 @@ class SpaceWindow(pyglet.window.Window):
                       ('v2f', [src_x1, y, src_x1, y - flame_height,
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
+
+    def draw_blood_spatters(self):
+        for blood in self.blood_spatters:
+            blood.update(self.tick)
+            new_bloods = []
+        self.blood_spatters[:] = [val for val in self.blood_spatters if not val.is_vanished]
+        colors = [102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0]
+        for blood in self.blood_spatters:
+            graphics.draw(4, graphics.GL_QUADS,
+                          ('v2f', [blood.x, blood.y, blood.x, blood.y + blood.size,
+                                   blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y]),
+                          ('c3B', colors)
+                          )
+
+    def trigger_blood_spatter(self, src_x, src_y):
+        print("TRIGGER")
+        for theta in np.linspace(0, 2 * math.pi, num=32):
+            ran_x = random.randint(0, 15)
+            ran_y = random.randint(0, 15)
+            self.blood_spatters += [BloodSpatterBlock(src_x + ran_x, src_y + ran_y, theta)]
+
 
     def draw_lasers(self):
         for bullet in self.model.bullets:
@@ -145,6 +170,32 @@ class SpaceWindow(pyglet.window.Window):
     def load_sounds(self):
         for name in self.SOUND_NAMES:
             self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
+
+class BloodSpatterBlock:
+    SPEED = 1
+    SIZE_DECAY = 0.1
+    COLOURS = (255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0)
+    TICK_RATE = 2
+    DEF_SIZE = 5
+
+    def __init__(self, x, y, vect):
+        self.x = x
+        self.y = y
+        self.vect = vect
+        self.size = self.DEF_SIZE
+        self.dx = 1
+        self.is_vanished = False
+
+    def update(self, dt):
+        if dt % self.TICK_RATE != 0:
+            return
+        self.x += math.cos(self.vect) * self.SPEED
+        self.y += math.sin(self.vect) * self.SPEED
+        self.size -= self.SIZE_DECAY
+        if self.size <= 0:
+            self.is_vanished = True
+            self.size = 0
+
 
 if __name__ == '__main__':
     window = SpaceWindow()
