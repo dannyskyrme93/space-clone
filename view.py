@@ -59,14 +59,14 @@ class SpaceWindow(pyglet.window.Window):
             self.rendered_sprite.append(sprite)
 
         ship = self.model.objects[0]
+        self.batch.draw()
+        self.draw_lasers()
         self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                         self.to_screen_y(ship.height))
-        self.draw_lasers()
         self.draw_blood_spatters()
         self.draw_header()
-        self.batch.draw()
-
         self.tick += 1
+
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
@@ -87,29 +87,33 @@ class SpaceWindow(pyglet.window.Window):
         # draw flame one
         src_x1 = x + offset
         src_x2 = x + offset + rocket_width
-        graphics.draw(4, graphics.GL_QUADS,
+        flame_batch = pyglet.graphics.Batch()
+        flame_batch.add(4, graphics.GL_QUADS, None,
                       ('v2f', [src_x1, y, src_x1, y - flame_height,
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[0]))
         src_x1 = src_x1 + width * 14 // 32
         src_x2 = src_x2 + width * 14 // 32
-        graphics.draw(4, graphics.GL_QUADS,
+        flame_batch.add(4, graphics.GL_QUADS, None,
                       ('v2f', [src_x1, y, src_x1, y - flame_height,
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
+        flame_batch.draw()
 
     def draw_blood_spatters(self):
+        blood_batch = pyglet.graphics.Batch()
         for blood in self.blood_spatters:
             blood.update(self.tick)
             new_bloods = []
         self.blood_spatters[:] = [val for val in self.blood_spatters if not val.is_vanished]
-        colors = [102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0]
+        colors = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
         for blood in self.blood_spatters:
-            graphics.draw(4, graphics.GL_QUADS,
-                          ('v2f', [blood.x, blood.y, blood.x, blood.y + blood.size,
-                                   blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y]),
+            blood_batch.add(4, graphics.GL_QUADS, None,
+                          ('v2f', (blood.x, blood.y, blood.x, blood.y + blood.size,
+                                   blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y)),
                           ('c3B', colors)
                           )
+        blood_batch.draw()
 
     def trigger_blood_spatter(self, src_x, src_y):
         print("TRIGGER")
