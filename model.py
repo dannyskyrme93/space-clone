@@ -41,6 +41,7 @@ class Model:
         self.bullet_height = 30
         self.bullet_dy = 4
         self.shoot_count = True
+        self.keys_pressed = 0
         self.objects = []   # list of Game Objects, will automatically draw on screen
         self.objects.append(GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                        self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png"))
@@ -97,14 +98,10 @@ class Model:
 
     def player_edge_det(self):
         if self.player.x <= 0:
-            if self.player.dx >= 0:    # Stops infinite dx = 0 at edges
-                pass
-            else:
+            if not self.player.dx >= 0:    # Stops infinite dx = 0 at edges
                 self.player.dx = 0
         elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
-            if self.player.dx <= 0:
-                pass
-            else:
+            if not self.player.dx <= 0:
                 self.player.dx = 0
 
     def player_speed_trunc(self):
@@ -116,12 +113,10 @@ class Model:
     def update(self):
         if self.tick % Model.tick_speed == 0:
             self.alien_update()
-
-        if abs(self.player.dx) > Model.PLAYER_SPEED:
-            self.player_speed_trunc()
+        self.player_speed_trunc()
+        self.player_edge_det()
         self.player.x += self.player.dx
         #player.y += player.dy
-        self.player_edge_det()
 
         for obj in self.bullets:
             obj[1] += self.bullet_dy
@@ -138,15 +133,18 @@ class Model:
         if action_type == view.KEY_PRESS:
             print(key_val, " was pressed")
             if key_val == key.LEFT:
-                if self.player.x <= 0 and self.player.dx != 0:
-                    pass
+                if self.player.x <= 0 and self.player.dx < 0:
+                    self.keys_pressed += 1
                 else:
+                    self.keys_pressed += 1
                     self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx != 0:
-                    pass
+                if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx > 0:
+                    self.keys_pressed += 1
                 else:
+                    self.keys_pressed += 1
                     self.player.dx += Model.PLAYER_SPEED
+
             elif key_val == key.SPACE:
                 print("Wow! The spacebar has been pressed")
                 if len(self.bullets) < self.bullet_max:
@@ -155,16 +153,24 @@ class Model:
                     elif not self.shoot_count:
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.shoot_count = not self.shoot_count
+            print(self.keys_pressed)
 
         if action_type == view.KEY_RELEASE:
             print(f"{key_val} was pressed")
             if key_val == key.LEFT:
                 if self.player.x <= 0:
-                    pass
+                    self.keys_pressed -= 1
+                elif self.keys_pressed == 1 and self.player.dx == 0:
+                    self.keys_pressed -= 1
                 else:
+                    self.keys_pressed -= 1
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH:
-                    pass
+                    self.keys_pressed -= 1
+                elif self.keys_pressed == 1 and self.player.dx == 0:
+                    self.keys_pressed -= 1
                 else:
+                    self.keys_pressed -= 1
                     self.player.dx -= Model.PLAYER_SPEED
+            print(self.keys_pressed)
