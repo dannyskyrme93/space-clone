@@ -97,12 +97,12 @@ class Model:
 
     def player_edge_det(self):
         if self.player.x <= 0:
-            if self.player.dx == 0:    # Stops infinite dx = 0 at edges
+            if self.player.dx >= 0:    # Stops infinite dx = 0 at edges
                 pass
             else:
                 self.player.dx = 0
         elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
-            if self.player.dx == 0:
+            if self.player.dx <= 0:
                 pass
             else:
                 self.player.dx = 0
