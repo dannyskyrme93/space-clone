@@ -23,7 +23,6 @@ class SpaceWindow(pyglet.window.Window):
             self.set_fullscreen(True)
             self.main_width = self.width
             ratio = self.header_height / self.main_height
-            print("RATIO", ratio)
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
         else:
@@ -32,7 +31,8 @@ class SpaceWindow(pyglet.window.Window):
             self.height = self.main_height + self.header_height
         self.img_base = dict()
         self.model = Model()
-
+        self.star_pts = []
+        self.generate_stars()
         self.flame_colours = []
         self.reset_flame_colours()
         self.batch = graphics.Batch()
@@ -45,13 +45,35 @@ class SpaceWindow(pyglet.window.Window):
     def reset(self):
         pass
 
+    def generate_stars(self):
+        num_of_pts = 100
+        self.star_pts = []
+        star_width = 1
+        for i in range(0, 400):
+            x = math.floor(random.random() * self.main_width)
+            y = math.floor(random.random() * self.main_height)
+            self.star_pts += [[x, y,
+                               x + star_width, y,
+                               x + star_width, y + star_width,
+                               x, y + star_width]]
+
+    def draw_stars(self):
+        star_batch = graphics.Batch()
+        colors = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
+        for i in self.star_pts:
+            star_batch.add(4, graphics.GL_QUADS, None, ('v2f', i))
+        star_batch.draw()
+
     def on_draw(self):
         if self.tick % 5000 == 0 and self.TEST_SOUND_ON:
             play_obj = self.sounds["laser_default"].play()
         if self.tick % 100 == 0:
             self.trigger_blood_spatter(random.randint(0, self.main_width), random.randint(0, self.main_height))
-        self.batch = graphics.Batch()
+
         window.clear()
+
+        self.batch = graphics.Batch()
+        self.draw_stars()
         self.rendered_sprite = []
         for obj in self.model.objects:
             if obj.img_name not in self.img_base.keys():
@@ -78,7 +100,6 @@ class SpaceWindow(pyglet.window.Window):
         self.draw_header()
         self.tick += 1
 
-
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
 
@@ -91,7 +112,7 @@ class SpaceWindow(pyglet.window.Window):
     def draw_flame(self, x, y, width, height):
         rocket_width = width // 8
         offset = 7.5 * width // 32
-        flame_height = 40
+        flame_height = (self.main_height + self.main_width) // 85
         flame_width = 5
         if random.random() < 0.2:
             self.reset_flame_colours()
@@ -127,7 +148,6 @@ class SpaceWindow(pyglet.window.Window):
         blood_batch.draw()
 
     def trigger_blood_spatter(self, src_x, src_y):
-        print("TRIGGER")
         for theta in np.linspace(0, 2 * math.pi, num=32):
             ran_x = random.randint(0, 15)
             ran_y = random.randint(0, 15)
