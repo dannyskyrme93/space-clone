@@ -139,7 +139,7 @@ class SpaceWindow(pyglet.window.Window):
             new_bloods = []
         self.blood_spatters[:] = [val for val in self.blood_spatters if not val.is_vanished]
         colors = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
-        for blood in self.blzood_spatters:
+        for blood in self.blood_spatters:
             blood_batch.add(4, graphics.GL_QUADS, None,
                           ('v2f', (blood.x, blood.y, blood.x, blood.y + blood.size,
                                    blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y)),
