@@ -15,7 +15,7 @@ class SpaceWindow(pyglet.window.Window):
     header_height = 50
     SOUND_NAMES = ["laser_default"]
     TEST_SOUND_ON = False
-    DEV_MODE = False
+    DEV_MODE = True
 
     def __init__(self):
         super(SpaceWindow, self).__init__(self.main_width, self.main_height + self.header_height)
