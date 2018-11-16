@@ -1,7 +1,7 @@
 import pyglet
 from pyglet.window import key
 import math
-from model import Model, GameObject
+from model import Model, GameObject, GameEvent
 import pyglet.graphics as graphics
 import random
 import simpleaudio as sa
@@ -67,8 +67,8 @@ class SpaceWindow(pyglet.window.Window):
     def on_draw(self):
         if self.tick % 5000 == 0 and self.TEST_SOUND_ON:
             play_obj = self.sounds["laser_default"].play()
-        if self.tick % 100 == 0:
-            self.trigger_blood_spatter(random.randint(0, self.main_width), random.randint(0, self.main_height))
+        self.trigger_events()
+        self.model.events = []
 
         window.clear()
 
@@ -139,13 +139,19 @@ class SpaceWindow(pyglet.window.Window):
             new_bloods = []
         self.blood_spatters[:] = [val for val in self.blood_spatters if not val.is_vanished]
         colors = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
-        for blood in self.blood_spatters:
+        for blood in self.blzood_spatters:
             blood_batch.add(4, graphics.GL_QUADS, None,
                           ('v2f', (blood.x, blood.y, blood.x, blood.y + blood.size,
                                    blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y)),
                           ('c3B', colors)
                           )
         blood_batch.draw()
+
+    def trigger_events(self):
+        ev: GameEvent
+        for ev in self.model.events:
+            if ev.type == "blood_impact":
+                self.trigger_blood_spatter(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]))
 
     def trigger_blood_spatter(self, src_x, src_y):
         for theta in np.linspace(0, 2 * math.pi, num=32):

@@ -20,6 +20,14 @@ class Alien(GameObject):
         self.cop = 0
 
 
+class GameEvent:
+    EVENT_TYPES = ["blood_impact"]
+
+    def __init__(self, type, coordinates=None):
+        self.type = type
+        self.coordinates = coordinates
+
+
 class Model:
     tick_speed = 30
     MODEL_WIDTH = 800
@@ -39,6 +47,7 @@ class Model:
         self.bullet_dy = Model.MODEL_HEIGHT / 100
         self.shoot_count = True
         self.keys_pressed = 0
+        self.events = []
         self.objects = []   # list of Game Objects, will automatically draw on screen
         self.objects.append(GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                        self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png"))
@@ -124,6 +133,8 @@ class Model:
             bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
             for mob in self.objects[1:]:
                 if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
+                    self.events += [GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1]))]
+                    print(self.events)
                     self.objects.remove(mob)
                     self.bullets.remove(bullet)
         self.tick += 1
