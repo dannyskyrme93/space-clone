@@ -16,6 +16,7 @@ class SpaceWindow(pyglet.window.Window):
     SOUND_NAMES = ["laser_default"]
     TEST_SOUND_ON = False
     DEV_MODE = True
+    BULLET_HEIGHT_PERCENT = 0.015
 
     def __init__(self):
         super(SpaceWindow, self).__init__(self.main_width, self.main_height + self.header_height)
@@ -161,12 +162,14 @@ class SpaceWindow(pyglet.window.Window):
 
 
     def draw_lasers(self):
+        colors = (0, 200, 255, 0, 200, 255)
         for bullet in self.model.bullets:
             graphics.draw(2, graphics.GL_LINES,
                           ('v2f', [self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1]),
                                    self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1] + self.to_screen_y(self.model.bullet_height))]))
+                                   self.to_screen_y(bullet[1] + int(self.BULLET_HEIGHT_PERCENT * self.main_height))]),
+                          ('c3B', colors))
 
     def draw_header(self):
         colors = [0, 0, 0, 13, 22, 48, 13, 22, 48, 0, 0, 0]
@@ -213,8 +216,8 @@ class SpaceWindow(pyglet.window.Window):
             self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
 
 class BloodSpatterBlock:
-    SPEED = 1
-    SIZE_DECAY = 0.1
+    SPEED = 2
+    SIZE_DECAY = 0.2
     COLOURS = (255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0)
     TICK_RATE = 2
     DEF_SIZE = 5
