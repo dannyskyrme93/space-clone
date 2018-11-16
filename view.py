@@ -76,27 +76,31 @@ class SpaceWindow(pyglet.window.Window):
         self.batch = graphics.Batch()
         self.draw_stars()
         self.rendered_sprite = []
-        for obj in self.model.objects:
-            if obj.img_name not in self.img_base.keys():
-                img_path = "img/" + obj.img_name
-                stream = open(img_path, 'rb')
-                img = pyglet.image.load(img_path, file=stream)
-                self.img_base[obj.img_name] = img
-            sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
-            sprite.x = self.main_width * (obj.x / self.model.MODEL_WIDTH)
-            sprite.y = self.main_height * (obj.y / self.model.MODEL_HEIGHT)
+        ship = self.model.player
+        obj: GameObject
+        composite = [ship] + self.model.objects
+        for obj in composite:
+            if obj.is_active:
+                if obj.img_name not in self.img_base.keys():
+                    img_path = "img/" + obj.img_name
+                    stream = open(img_path, 'rb')
+                    img = pyglet.image.load(img_path, file=stream)
+                    self.img_base[obj.img_name] = img
+                sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
+                sprite.x = self.main_width * (obj.x / self.model.MODEL_WIDTH)
+                sprite.y = self.main_height * (obj.y / self.model.MODEL_HEIGHT)
 
-            tgt_x = obj.width / self.model.MODEL_WIDTH
-            tgt_y = obj.height / self.model.MODEL_HEIGHT
-            sprite.scale_x = tgt_x * self.main_width / sprite.width
-            sprite.scale_y = tgt_y * self.height / sprite.height
-            self.rendered_sprite.append(sprite)
+                tgt_x = obj.width / self.model.MODEL_WIDTH
+                tgt_y = obj.height / self.model.MODEL_HEIGHT
+                sprite.scale_x = tgt_x * self.main_width / sprite.width
+                sprite.scale_y = tgt_y * self.height / sprite.height
+                self.rendered_sprite.append(sprite)
 
-        ship = self.model.objects[0]
         self.batch.draw()
         self.draw_lasers()
-        self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
-                        self.to_screen_y(ship.height))
+        if ship.is_active:
+            self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
+                            self.to_screen_y(ship.height))
         self.draw_blood_spatters()
         self.draw_header()
         self.tick += 1
