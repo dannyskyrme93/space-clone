@@ -17,14 +17,13 @@ class Alien(GameObject):
     def __init__(self, x, y, width, height, img_name):
         super().__init__(x, y, width, height, img_name)
         self.dx = 1
-        self.cop = 0
 
 
 class GameEvent:
-    EVENT_TYPES = ["blood_impact"]
+    EVENT_TYPES = ["blood_impact", "player_death"]
 
-    def __init__(self, type, coordinates=None):
-        self.type = type
+    def __init__(self, type_of, coordinates=None):
+        self.type = type_of
         self.coordinates = coordinates
 
 
@@ -45,13 +44,12 @@ class Model:
         self.bullet_max = 4
         self.bullet_height = Model.MODEL_HEIGHT / 20
         self.bullet_dy = Model.MODEL_HEIGHT / 100
-        self.shoot_count = True
+        self.shoot_count = True   # Which cannon to fire from next
         self.keys_pressed = 0
         self.events = []
         self.objects = []   # list of Game Objects, will automatically draw on screen
-        self.objects.append(GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
-                                       self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png"))
-        self.player = self.objects[0]
+        self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
+                                 self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
         print(self.player.__dict__)
 
         alien_rows = 0
@@ -81,12 +79,12 @@ class Model:
             self.BOX_END += Model.MODEL_WIDTH / 40
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
                 print('Deadly Jamedley')                                   # safety buffer
-                for obj in self.objects[1:]:
+                for obj in self.objects[:]:
                     obj.dx = 0
                     obj.y -= Model.ALIEN_HEIGHT
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
-                for obj in self.objects[1:]:
+                for obj in self.objects[:]:
                     obj.x += Model.MODEL_WIDTH / 40
 
         elif not self.ALIEN_MOVE_RIGHT:
@@ -94,12 +92,12 @@ class Model:
             self.BOX_END -= Model.MODEL_WIDTH / 40
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  #TODO
                 print('Holy jamoley!')
-                for obj in self.objects[1:]:
+                for obj in self.objects[:]:
                     obj.dx = 0
                     obj.y -= Model.ALIEN_HEIGHT
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
-                for obj in self.objects[1:]:
+                for obj in self.objects[:]:
                     obj.x -= Model.MODEL_WIDTH / 40
 
     def player_edge_det(self):
@@ -117,6 +115,14 @@ class Model:
             self.player.dx = Model.PLAYER_SPEED
 
     def update(self):
+        for mob in self.objects[:]:
+            if mob.y <= self.player.y + self.player.height:
+                point_list = ((mob.x, mob.y), (mob.x + mob.width, mob.y), (mob.x, mob.y + mob.height),
+                              (mob.x + mob.width, mob.y + mob.height))
+                for point in point_list:
+                    if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
+                        print("Dead zone")
+
         if self.tick % Model.tick_speed == 0:
             self.alien_update()
         self.player_speed_trunc()
@@ -131,7 +137,7 @@ class Model:
                 self.bullets.remove(bullet)
 
             bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
-            for mob in self.objects[1:]:
+            for mob in self.objects[:]:
                 if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
                     self.events += [GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1]))]
                     print(self.events)
