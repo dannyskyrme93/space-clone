@@ -49,7 +49,8 @@ class Model:
         self.events = []
         self.objects = []   # list of Game Objects, will automatically draw on screen
         self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
-                                 self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
+                                 self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "tom hanks.jpg")
+        self.player_lives = 3
         print(self.player.__dict__)
 
         alien_rows = 0
@@ -58,7 +59,7 @@ class Model:
         while alien_y > self.MODEL_HEIGHT / 2 and alien_rows < 4:                  # Alien y spawn endpoint.
             alien_x = Model.ALIEN_X_OFF * 3                                         # Alien spawn x starting point.
             while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:   # Alien x spawn endpoint.
-                self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
+                self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "tom hanks.jpg")]
 
                 if alien_columns == 0 and alien_rows == 0:
                     self.BOX_START = self.objects[-1].x
@@ -122,7 +123,10 @@ class Model:
                 for point in point_list:
                     if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
                         self.player.is_active = False
-                        self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)))
+                        if "player_death" not in GameEvent.EVENT_TYPES:
+                            print("Facade")
+                            self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2,
+                                                                          self.player.y + self.player.height / 2)))
 
         if self.tick % Model.tick_speed == 0:
             self.alien_update()
