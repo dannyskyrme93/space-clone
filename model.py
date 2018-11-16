@@ -19,9 +19,6 @@ class Alien(GameObject):
         self.dx = 1
         self.cop = 0
 
-        def alien_movement(self):
-            pass
-
 
 class Model:
     tick_speed = 30
@@ -38,8 +35,8 @@ class Model:
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.bullet_max = 4
-        self.bullet_height = 30
-        self.bullet_dy = 4
+        self.bullet_height = Model.MODEL_HEIGHT / 20
+        self.bullet_dy = Model.MODEL_HEIGHT / 100
         self.shoot_count = True
         self.keys_pressed = 0
         self.objects = []   # list of Game Objects, will automatically draw on screen
@@ -118,11 +115,17 @@ class Model:
         self.player.x += self.player.dx
         #player.y += player.dy
 
-        for obj in self.bullets:
-            obj[1] += self.bullet_dy
-            if obj[1] >= Model.MODEL_HEIGHT:
-                self.bullets.remove(obj)
-                print(self.bullets)
+        for bullet in self.bullets:
+            bullet[1] += self.bullet_dy
+
+            if bullet[1] >= Model.MODEL_HEIGHT:
+                self.bullets.remove(bullet)
+
+            bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
+            for mob in self.objects[1:]:
+                if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
+                    self.objects.remove(mob)
+                    self.bullets.remove(bullet)
         self.tick += 1
 
     def action(self, key_val: str, action_type: int):
@@ -153,24 +156,18 @@ class Model:
                     elif not self.shoot_count:
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.shoot_count = not self.shoot_count
-            print(self.keys_pressed)
 
         if action_type == view.KEY_RELEASE:
             print(f"{key_val} was pressed")
             if key_val == key.LEFT:
-                if self.player.x <= 0:
-                    self.keys_pressed -= 1
-                elif self.keys_pressed == 1 and self.player.dx == 0:
+                if self.player.x <= 0 or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
                     self.keys_pressed -= 1
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if self.player.x + self.player.width >= Model.MODEL_WIDTH:
-                    self.keys_pressed -= 1
-                elif self.keys_pressed == 1 and self.player.dx == 0:
+                if self.player.x + self.player.width >= Model.MODEL_WIDTH or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
                     self.keys_pressed -= 1
                     self.player.dx -= Model.PLAYER_SPEED
-            print(self.keys_pressed)
