@@ -27,6 +27,7 @@ class SpaceWindow(pyglet.window.Window):
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
         else:
+            self.fps_display = None
             self.set_location(50, 50)
             self.width = self.main_width
             self.height = self.main_height + self.header_height
@@ -41,7 +42,11 @@ class SpaceWindow(pyglet.window.Window):
         self.tick = 0
         self.sounds = {}
         self.load_sounds()
-        self.blood_spatters = []
+        self.pixel_spills = []
+
+    def set_clock(self, clock:pyglet):
+        if self.DEV_MODE:
+            self.fps_display = clock.ClockDisplay()
 
     def reset(self):
         pass
@@ -101,8 +106,11 @@ class SpaceWindow(pyglet.window.Window):
         if ship.is_active:
             self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
                             self.to_screen_y(ship.height))
-        self.draw_blood_spatters()
+        self.draw_pixel_spills()
         self.draw_header()
+
+        if self.DEV_MODE:
+            self.fps_display.draw()
         self.tick += 1
 
     def on_key_press(self, symbol, modifiers):
@@ -113,6 +121,40 @@ class SpaceWindow(pyglet.window.Window):
             self.close()
         else:
             self.model.action(symbol, KEY_RELEASE)
+
+    def trigger_events(self):
+        ev: GameEvent
+        for ev in self.model.events:
+            if ev.type == "blood_impact":
+                colour = PixelSpillBlock.BLOOD_COLOUR
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         [colour])
+            elif ev.type == "explosion":
+                colours = PixelSpillBlock.FLAME_COLOURS
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         colours)
+
+    def draw_pixel_spills(self):
+        pxl_batch = pyglet.graphics.Batch()
+        for px in self.pixel_spills:
+            px.update(self.tick)
+        self.pixel_spills[:] = [val for val in self.pixel_spills if not val.is_vanished]
+        px: PixelSpillBlock
+        for px in self.pixel_spills:
+            colours = px.colour
+            pxl_batch.add(4, graphics.GL_QUADS, None,
+                          ('v2f', (px.x, px.y, px.x, px.y + px.size,
+                                   px.x + px.size, px.y + px.size, px.x + px.size, px.y)),
+                          ('c3B', colours)
+                          )
+        pxl_batch.draw()
+
+    def trigger_pixel_spill(self, src_x, src_y, colours):
+        for theta in np.linspace(0, 2 * math.pi, num=40):
+            ran_x = random.randint(0, 15)
+            ran_y = random.randint(0, 15)
+            self.pixel_spills += [PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
+                                                  colours[random.randint(0, len(colours) - 1)])]
 
     def draw_flame(self, x, y, width, height):
         rocket_width = width // 8
@@ -136,34 +178,6 @@ class SpaceWindow(pyglet.window.Window):
                                src_x2, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
         flame_batch.draw()
-
-    def draw_blood_spatters(self):
-        blood_batch = pyglet.graphics.Batch()
-        for blood in self.blood_spatters:
-            blood.update(self.tick)
-            new_bloods = []
-        self.blood_spatters[:] = [val for val in self.blood_spatters if not val.is_vanished]
-        colors = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
-        for blood in self.blood_spatters:
-            blood_batch.add(4, graphics.GL_QUADS, None,
-                          ('v2f', (blood.x, blood.y, blood.x, blood.y + blood.size,
-                                   blood.x + blood.size, blood.y + blood.size, blood.x + blood.size, blood.y)),
-                          ('c3B', colors)
-                          )
-        blood_batch.draw()
-
-    def trigger_events(self):
-        ev: GameEvent
-        for ev in self.model.events:
-            if ev.type == "blood_impact":
-                self.trigger_blood_spatter(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]))
-
-    def trigger_blood_spatter(self, src_x, src_y):
-        for theta in np.linspace(0, 2 * math.pi, num=32):
-            ran_x = random.randint(0, 15)
-            ran_y = random.randint(0, 15)
-            self.blood_spatters += [BloodSpatterBlock(src_x + ran_x, src_y + ran_y, theta)]
-
 
     def draw_lasers(self):
         colors = (0, 200, 255, 0, 200, 255)
@@ -219,20 +233,26 @@ class SpaceWindow(pyglet.window.Window):
         for name in self.SOUND_NAMES:
             self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
 
-class BloodSpatterBlock:
+
+class PixelSpillBlock:
+    DEF_COLOUR = (255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255)
+    BLOOD_COLOUR = (102, 0, 0, 102, 0, 0, 102, 0, 0, 102, 0, 0)
+    FLAME_COLOURS = [(255, 91, 20, 255, 91, 20, 255, 91, 20, 255, 91, 20),
+                     (255, 35, 35, 255, 35, 35, 255, 35, 35, 255, 35, 35),
+                     (255, 162, 85, 255, 162, 85, 255, 162, 85, 255, 162, 85)]
     SPEED = 2
     SIZE_DECAY = 0.2
-    COLOURS = (255, 0, 0, 255, 0, 0, 255, 0, 0, 255, 0, 0)
     TICK_RATE = 2
-    DEF_SIZE = 5
+    DEF_SIZE = 6
 
-    def __init__(self, x, y, vect):
+    def __init__(self, x, y, vect, colour=None):
         self.x = x
         self.y = y
         self.vect = vect
         self.size = self.DEF_SIZE
         self.dx = 1
         self.is_vanished = False
+        self.colour = (self.DEF_COLOUR if colour == None else colour)
 
     def update(self, dt):
         if dt % self.TICK_RATE != 0:
@@ -249,6 +269,7 @@ if __name__ == '__main__':
     window = SpaceWindow()
     pyglet.clock.set_fps_limit(60)
     dt = 1.0 / 60
+    window.set_clock(pyglet.clock)
     pyglet.clock.schedule_interval(window.update, dt)
     pyglet.app.run()
 
