@@ -131,11 +131,11 @@ class SpaceWindow(pyglet.window.Window):
             if ev.type == "blood_impact":
                 colour = PixelSpillBlock.BLOOD_COLOUR
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         [colour])
+                                         [colour], 0.5, 1)
             elif ev.type == "explosion":
                 colours = PixelSpillBlock.FLAME_COLOURS
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         colours)
+                                         colours, 1, 0.66)
 
     def draw_pixel_spills(self):
         pxl_batch = pyglet.graphics.Batch()
@@ -152,18 +152,19 @@ class SpaceWindow(pyglet.window.Window):
                           )
         pxl_batch.draw()
 
-    def trigger_pixel_spill(self, src_x, src_y, colours):
-        for theta in np.linspace(0, 2 * math.pi, num=40):
+    def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
+        start = 0
+        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=40):
             ran_x = random.randint(0, 15)
             ran_y = random.randint(0, 15)
             self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
-                                                  colours[random.randint(0, len(colours) - 1)]))
+                                                  colours[random.randint(0, len(colours) - 1)], speed_ratio=speed_ratio))
 
     def draw_flame(self, x, y, width, height):
         rocket_width = width // 8
         offset = 7.5 * width // 32
-        flame_height = (self.main_height + self.main_width) // 88
-        flame_width = 5
+        flame_height = (self.main_height + self.main_width) // 75
+        flame_width_reduct = rocket_width // 8
         if random.random() < 0.2:
             self.reset_flame_colours()
         # draw flame one
@@ -171,14 +172,14 @@ class SpaceWindow(pyglet.window.Window):
         src_x2 = x + offset + rocket_width
         flame_batch = pyglet.graphics.Batch()
         flame_batch.add(4, graphics.GL_QUADS, None,
-                      ('v2f', [src_x1, y, src_x1, y - flame_height,
-                               src_x2, y - flame_height, src_x2, y]),
+                      ('v2f', [src_x1, y, src_x1 + flame_width_reduct, y - flame_height,
+                               src_x2 - flame_width_reduct, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[0]))
         src_x1 = src_x1 + width * 14 // 32
         src_x2 = src_x2 + width * 14 // 32
         flame_batch.add(4, graphics.GL_QUADS, None,
-                      ('v2f', [src_x1, y, src_x1, y - flame_height,
-                               src_x2, y - flame_height, src_x2, y]),
+                      ('v2f', [src_x1, y, src_x1 + flame_width_reduct, y - flame_height,
+                               src_x2 - flame_width_reduct, y - flame_height, src_x2, y]),
                       ('c3B', self.flame_colours[1]))
         flame_batch.draw()
 
@@ -243,12 +244,13 @@ class PixelSpillBlock:
     FLAME_COLOURS = [(255, 91, 20, 255, 91, 20, 255, 91, 20, 255, 91, 20),
                      (255, 35, 35, 255, 35, 35, 255, 35, 35, 255, 35, 35),
                      (255, 162, 85, 255, 162, 85, 255, 162, 85, 255, 162, 85)]
-    SPEED = 2
+    MAX_SPEED = 3
     SIZE_DECAY = 0.2
     TICK_RATE = 2
     DEF_SIZE = 6
 
-    def __init__(self, x, y, vect, colour=None):
+    def __init__(self, x, y, vect, colour=None, speed_ratio=1):
+        self.speed = self.MAX_SPEED * speed_ratio
         self.x = x
         self.y = y
         self.vect = vect
@@ -260,8 +262,8 @@ class PixelSpillBlock:
     def update(self, dt):
         if dt % self.TICK_RATE != 0:
             return
-        self.x += math.cos(self.vect) * self.SPEED
-        self.y += math.sin(self.vect) * self.SPEED
+        self.x += math.cos(self.vect) * self.speed
+        self.y += math.sin(self.vect) * self.speed
         self.size -= self.SIZE_DECAY
         if self.size <= 0:
             self.is_vanished = True
