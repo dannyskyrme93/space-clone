@@ -81,12 +81,11 @@ class Model:
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
                 print('Deadly Jamedley')                                   # safety buffer
                 for obj in self.objects[:]:
-                    obj.dx = 0
-                    obj.y -= Model.ALIEN_HEIGHT
+                    self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
                 for obj in self.objects[:]:
-                    obj.x += Model.MODEL_WIDTH / 40
+                    self.update_position(obj, Model.MODEL_WIDTH / 40, 0)
 
         elif not self.ALIEN_MOVE_RIGHT:
             self.BOX_START -= Model.MODEL_WIDTH / 40
@@ -94,12 +93,11 @@ class Model:
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  #TODO
                 print('Holy jamoley!')
                 for obj in self.objects[:]:
-                    obj.dx = 0
-                    obj.y -= Model.ALIEN_HEIGHT
+                    self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
                 for obj in self.objects[:]:
-                    obj.x -= Model.MODEL_WIDTH / 40
+                    self.update_position(obj, -Model.MODEL_WIDTH / 40, 0)
 
     def player_edge_det(self):
         if self.player.x <= 0:
@@ -115,7 +113,7 @@ class Model:
         elif self.player.dx > 0:
             self.player.dx = Model.PLAYER_SPEED
 
-    def update(self):
+    def screen_change(self):
         for mob in self.objects[:]:
             if mob.y <= self.player.y + self.player.height:
                 point_list = ((mob.x, mob.y), (mob.x + mob.width, mob.y), (mob.x, mob.y + mob.height),
@@ -123,18 +121,12 @@ class Model:
                 for point in point_list:
                     if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
                         self.player.is_active = False
-                        if "player_death" not in GameEvent.EVENT_TYPES:
-                            print("Facade")
-                            self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2,
-                                                                          self.player.y + self.player.height / 2)))
+                        # self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2,
+                        #                                               self.player.y + self.player.height / 2)))
+            if mob.y + mob.height <= 0:  # Monsters off edge of screen
+                self.player.is_active = False
 
-        if self.tick % Model.tick_speed == 0:
-            self.alien_update()
-        self.player_speed_trunc()
-        self.player_edge_det()
-        self.player.x += self.player.dx
-        #player.y += player.dy
-
+    def bullet_hit_det(self):
         for bullet in self.bullets:
             bullet[1] += self.bullet_dy
 
@@ -144,10 +136,32 @@ class Model:
             bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
             for mob in self.objects[:]:
                 if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
-                    self.events += [GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1]))]
+                    self.events.append(GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1])))
                     print(self.events)
                     self.objects.remove(mob)
                     self.bullets.remove(bullet)
+
+    def update_position(self, piece, dx, dy):
+        piece.dx = dx
+        piece.dy = dy
+        piece.x += dx
+        piece.y += dy
+
+    def update(self):
+        self.screen_change()
+        if self.tick % Model.tick_speed == 0:
+            if not self.player.is_active:
+                for mob in self.objects:
+                    self.update_position(mob, 0, -Model.tick_speed)
+                print('you lose')
+            else:
+                self.alien_update()
+
+        self.player_speed_trunc()
+        self.player_edge_det()
+        self.update_position(self.player, self.player.dx, self.player.dy)
+        self.bullet_hit_det()
+
         self.tick += 1
 
     def action(self, key_val: str, action_type: int):
