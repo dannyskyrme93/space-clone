@@ -20,6 +20,9 @@ class SpaceWindow(pyglet.window.Window):
 
     def __init__(self):
         super(SpaceWindow, self).__init__(self.main_width, self.main_height + self.header_height)
+        self.set_caption("Space Clone")
+        icon = pyglet.image.load('img/x-wing_icon.png')
+        self.set_icon(icon)
         if not self.DEV_MODE:
             self.set_fullscreen(True)
             self.main_width = self.width
@@ -58,10 +61,10 @@ class SpaceWindow(pyglet.window.Window):
         for i in range(0, 400):
             x = math.floor(random.random() * self.main_width)
             y = math.floor(random.random() * self.main_height)
-            self.star_pts += [[x, y,
+            self.star_pts.extend([[x, y,
                                x + star_width, y,
                                x + star_width, y + star_width,
-                               x, y + star_width]]
+                               x, y + star_width]])
 
     def draw_stars(self):
         star_batch = graphics.Batch()
@@ -153,8 +156,8 @@ class SpaceWindow(pyglet.window.Window):
         for theta in np.linspace(0, 2 * math.pi, num=40):
             ran_x = random.randint(0, 15)
             ran_y = random.randint(0, 15)
-            self.pixel_spills += [PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
-                                                  colours[random.randint(0, len(colours) - 1)])]
+            self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
+                                                  colours[random.randint(0, len(colours) - 1)]))
 
     def draw_flame(self, x, y, width, height):
         rocket_width = width // 8
