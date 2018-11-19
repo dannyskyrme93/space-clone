@@ -123,8 +123,10 @@ class Model:
                         self.player.is_active = False
                         # self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2,
                         #                                               self.player.y + self.player.height / 2)))
-            if mob.y + mob.height <= 0:  # Monsters off edge of screen
+            if mob.y <= 0:  # Monsters off edge of screen
                 self.player.is_active = False
+                if mob.y + mob.height <= 0:
+                    self.objects.remove(mob)
 
     def bullet_hit_det(self):
         for bullet in self.bullets:
