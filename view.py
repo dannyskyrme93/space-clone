@@ -159,7 +159,7 @@ class SpaceWindow(pyglet.window.Window):
     def draw_flame(self, x, y, width, height):
         rocket_width = width // 8
         offset = 7.5 * width // 32
-        flame_height = (self.main_height + self.main_width) // 85
+        flame_height = (self.main_height + self.main_width) // 88
         flame_width = 5
         if random.random() < 0.2:
             self.reset_flame_colours()
