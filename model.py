@@ -1,4 +1,5 @@
 from pyglet.window import key
+import enum
 
 
 class GameObject:
@@ -20,7 +21,12 @@ class Alien(GameObject):
 
 
 class GameEvent:
-    EVENT_TYPES = ["blood_impact", "player_death", "explosion", "game_over", "reset"]
+    class EventType(enum.Enum):
+        BLOOD_IMPACT = 1
+        PLAYER_DEATH = 2
+        EXPLOSION = 3
+        GAME_OVER = 4
+        RESET = 5
 
     def __init__(self, type_of, coordinates=None):
         self.type = type_of
@@ -44,7 +50,9 @@ class Model:
         self.bullet_max = 4
         self.bullet_height = Model.MODEL_HEIGHT / 20
         self.bullet_dy = Model.MODEL_HEIGHT / 100
-        self.shoot_count = True   # Which cannon to fire from next
+        self.countdown = 20
+        self.q_countdown = self.countdown
+        self.e_countdown = self.countdown
         self.keys_pressed = 0
         self.events = []
         self.objects = []   # list of Game Objects, will automatically draw on screen
@@ -136,7 +144,7 @@ class Model:
             bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
             for mob in self.objects[:]:
                 if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
-                    self.events.append(GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1])))
+                    self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT, (bullet_tip[0], bullet_tip[1])))
                     self.objects.remove(mob)
                     self.bullets.remove(bullet)
 
@@ -161,6 +169,10 @@ class Model:
         self.update_position(self.player, self.player.dx, self.player.dy)
         self.bullet_hit_det()
 
+        if not self.q_countdown <= 0:
+            self.q_countdown -= 1
+        if not self.e_countdown <= 0:
+            self.e_countdown -= 1
         self.tick += 1
 
     def action(self, key_val: str, action_type: int):
@@ -183,18 +195,22 @@ class Model:
                     self.keys_pressed += 1
                     self.player.dx += Model.PLAYER_SPEED
 
-            elif key_val == key.SPACE:
-                print("Wow! The spacebar has been pressed")
+            elif key_val == key.Q and self.q_countdown <= 0:
+                print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
-                    if self.shoot_count:
-                        self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
-                    elif not self.shoot_count:
-                        self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
-                    self.shoot_count = not self.shoot_count
+                    self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
+                    self.q_countdown = self.countdown
+
+            elif key_val == key.E and self.e_countdown <= 0:
+                print("Wow! The E has been pressed")
+                if len(self.bullets) < self.bullet_max:
+                    self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
+                    self.e_countdown = self.countdown
+
             elif key_val == key.G:
-                self.events.append(GameEvent("game_over"))  # TODO to be removed
+                self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # TODO to be removed
             elif key_val == key.R:
-                self.events.append(GameEvent("reset")) # TODO to be removed
+                self.events.append(GameEvent(GameEvent.EventType.RESET))  # TODO to be removed
 
         if action_type == view.KEY_RELEASE:
             print(f"{key_val} was pressed")
