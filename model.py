@@ -126,9 +126,10 @@ class Model:
                               (mob.x + mob.width, mob.y + mob.height))
                 for point in point_list:
                     if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
-                        self.player.is_active = False
-                        # self.events.append(GameEvent("player_death", (self.player.x + self.player.width / 2,
-                        #                                               self.player.y + self.player.height / 2)))
+                        if self.player.is_active:
+                            self.player.is_active = False
+                            # self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
+                            #                                               self.player.y + self.player.height / 2)))
             if mob.y <= 0:  # Monsters off edge of screen
                 self.player.is_active = False
                 if mob.y + mob.height <= 0:
@@ -201,7 +202,7 @@ class Model:
                     self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
                     self.q_countdown = self.countdown
 
-            elif key_val == key.E and self.e_countdown <= 0:
+            elif key_val == key.W and self.e_countdown <= 0:
                 print("Wow! The E has been pressed")
                 if len(self.bullets) < self.bullet_max:
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
