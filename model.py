@@ -20,7 +20,7 @@ class Alien(GameObject):
 
 
 class GameEvent:
-    EVENT_TYPES = ["blood_impact", "player_death"]
+    EVENT_TYPES = ["blood_impact", "player_death", "explosion", "game_over", "reset"]
 
     def __init__(self, type_of, coordinates=None):
         self.type = type_of
@@ -79,7 +79,6 @@ class Model:
             self.BOX_START += Model.MODEL_WIDTH / 40
             self.BOX_END += Model.MODEL_WIDTH / 40
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
-                print('Deadly Jamedley')                                   # safety buffer
                 for obj in self.objects[:]:
                     self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
@@ -91,7 +90,6 @@ class Model:
             self.BOX_START -= Model.MODEL_WIDTH / 40
             self.BOX_END -= Model.MODEL_WIDTH / 40
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  #TODO
-                print('Holy jamoley!')
                 for obj in self.objects[:]:
                     self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
@@ -139,7 +137,6 @@ class Model:
             for mob in self.objects[:]:
                 if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
                     self.events.append(GameEvent("blood_impact", (bullet_tip[0], bullet_tip[1])))
-                    print(self.events)
                     self.objects.remove(mob)
                     self.bullets.remove(bullet)
 
@@ -194,6 +191,10 @@ class Model:
                     elif not self.shoot_count:
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.shoot_count = not self.shoot_count
+            elif key_val == key.G:
+                self.events.append(GameEvent("game_over"))  # TODO to be removed
+            elif key_val == key.R:
+                self.events.append(GameEvent("reset")) # TODO to be removed
 
         if action_type == view.KEY_RELEASE:
             print(f"{key_val} was pressed")

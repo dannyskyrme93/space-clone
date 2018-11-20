@@ -6,8 +6,10 @@ import pyglet.graphics as graphics
 import random
 import simpleaudio as sa
 import numpy as np
+import enum
 
 KEY_PRESS, KEY_RELEASE = 0, 1
+
 
 class SpaceWindow(pyglet.window.Window):
     main_width = 1700
@@ -20,9 +22,12 @@ class SpaceWindow(pyglet.window.Window):
 
     def __init__(self):
         super(SpaceWindow, self).__init__(self.main_width, self.main_height + self.header_height)
+        self.screen_type = ScreenType.PLAYING
         self.set_caption("Space Clone")
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
+        pyglet.font.add_file('res/8-BIT WONDER.ttf')
+        self.bit_font = pyglet.font.load('8Bit Wonder')
         if not self.DEV_MODE:
             self.set_fullscreen(True)
             self.main_width = self.width
@@ -52,7 +57,8 @@ class SpaceWindow(pyglet.window.Window):
             self.fps_display = clock.ClockDisplay()
 
     def reset(self):
-        pass
+        print("Resetting")
+        self.screen_type = ScreenType.PLAYING
 
     def generate_stars(self):
         num_of_pts = 100
@@ -79,42 +85,53 @@ class SpaceWindow(pyglet.window.Window):
         self.trigger_events()
         self.model.events = []
 
-        window.clear()
+        if self.screen_type == ScreenType.PLAYING:
+            window.clear()
 
-        self.batch = graphics.Batch()
-        self.draw_stars()
-        self.rendered_sprite = []
-        ship = self.model.player
-        obj: GameObject
-        composite = [ship] + self.model.objects
-        for obj in composite:
-            if obj.is_active:
-                if obj.img_name not in self.img_base.keys():
-                    img_path = "img/" + obj.img_name
-                    stream = open(img_path, 'rb')
-                    img = pyglet.image.load(img_path, file=stream)
-                    self.img_base[obj.img_name] = img
-                sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
-                sprite.x = self.main_width * (obj.x / self.model.MODEL_WIDTH)
-                sprite.y = self.main_height * (obj.y / self.model.MODEL_HEIGHT)
+            self.batch = graphics.Batch()
+            self.draw_stars()
+            self.rendered_sprite = []
+            ship = self.model.player
+            obj: GameObject
+            composite = [ship] + self.model.objects
+            for obj in composite:
+                if obj.is_active:
+                    if obj.img_name not in self.img_base.keys():
+                        img_path = "img/" + obj.img_name
+                        stream = open(img_path, 'rb')
+                        img = pyglet.image.load(img_path, file=stream)
+                        self.img_base[obj.img_name] = img
+                    sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=self.batch)
+                    sprite.x = self.main_width * (obj.x / self.model.MODEL_WIDTH)
+                    sprite.y = self.main_height * (obj.y / self.model.MODEL_HEIGHT)
 
-                tgt_x = obj.width / self.model.MODEL_WIDTH
-                tgt_y = obj.height / self.model.MODEL_HEIGHT
-                sprite.scale_x = tgt_x * self.main_width / sprite.width
-                sprite.scale_y = tgt_y * self.height / sprite.height
-                self.rendered_sprite.append(sprite)
+                    tgt_x = obj.width / self.model.MODEL_WIDTH
+                    tgt_y = obj.height / self.model.MODEL_HEIGHT
+                    sprite.scale_x = tgt_x * self.main_width / sprite.width
+                    sprite.scale_y = tgt_y * self.height / sprite.height
+                    self.rendered_sprite.append(sprite)
 
-        self.batch.draw()
-        self.draw_lasers()
-        if ship.is_active:
-            self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
-                            self.to_screen_y(ship.height))
-        self.draw_pixel_spills()
-        self.draw_header()
+            self.batch.draw()
+            self.draw_lasers()
+            if ship.is_active:
+                self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width),
+                                self.to_screen_y(ship.height))
+            self.draw_pixel_spills()
+            self.draw_header()
 
-        if self.DEV_MODE:
-            self.fps_display.draw()
-        self.tick += 1
+            if self.DEV_MODE:
+                self.fps_display.draw()
+            self.tick += 1
+        elif self.screen_type == ScreenType.GAME_OVER:
+            self.head_lbl = pyglet.text.Label("You Lose Idiot",
+                                              font_name='8Bit Wonder',
+                                              font_size=self.main_width // 30,
+                                              width=self.main_width // 4, height=self.header_height * 2,
+                                              x=self.main_width // 2, y=self.height // 2,
+                                              anchor_x='center', anchor_y='center',
+                                              color=(255, 255, 255, 255))
+            self.head_lbl.draw()
+
 
     def on_key_press(self, symbol, modifiers):
         self.model.action(symbol, KEY_PRESS)
@@ -136,6 +153,12 @@ class SpaceWindow(pyglet.window.Window):
                 colours = PixelSpillBlock.FLAME_COLOURS
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
                                          colours, 1, 0.66)
+            elif ev.type == "game_over":
+                print("Game Over")
+                self.screen_type = ScreenType.GAME_OVER
+            elif ev.type == "reset":
+                print("reset")
+                self.reset()
 
     def draw_pixel_spills(self):
         pxl_batch = pyglet.graphics.Batch()
@@ -201,16 +224,14 @@ class SpaceWindow(pyglet.window.Window):
                                                      self.main_width, self.main_height]), ('c3b', colors))
         graphics.draw(2, graphics.GL_LINES, ('v2f', [0, self.main_height,
                                                      self.main_width, self.main_height]))
-        pyglet.font.add_file('res/8-BIT WONDER.ttf')
-        bit_font = pyglet.font.load('8Bit Wonder')
-        self.lbl = pyglet.text.Label("Enemies Remaining:",
+        self.head_lbl = pyglet.text.Label("Enemies Remaining:",
                                      font_name='8Bit Wonder',
                                      font_size=self.main_width // 50,
                                      width=self.main_width, height=self.header_height ,
                                      x=self.main_width // 40, y=self.main_height + self.header_height,
                                      anchor_x='left', anchor_y='top',
                                      color=(255, 255, 255, 255))
-        self.lbl.draw()
+        self.head_lbl.draw()
 
     def update(self, dt):
         self.model.update()
@@ -236,6 +257,12 @@ class SpaceWindow(pyglet.window.Window):
     def load_sounds(self):
         for name in self.SOUND_NAMES:
             self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
+
+
+class ScreenType(enum.Enum):
+    PLAYING = 0
+    MAIN_MENU = 1
+    GAME_OVER = 2
 
 
 class PixelSpillBlock:
