@@ -128,8 +128,8 @@ class Model:
                     if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
                         if self.player.is_active:
                             self.player.is_active = False
-                            # self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
-                            #                                               self.player.y + self.player.height / 2)))
+                            self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
+                                                                                    self.player.y + self.player.height / 2)))
             if mob.y <= 0:  # Monsters off edge of screen
                 self.player.is_active = False
                 if mob.y + mob.height <= 0:
