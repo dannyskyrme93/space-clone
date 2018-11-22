@@ -229,13 +229,13 @@ class Model:
                 pass  # TODO to be removed
 
         if action_type == view.KEY_RELEASE:
-            if key_val == key.A:
+            if key_val == key.LEFT:
                 if self.player.x <= 0 or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
                     self.keys_pressed -= 1
                     self.player.dx += Model.PLAYER_SPEED
-            elif key_val == key.D:
+            elif key_val == key.RIGHT:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
