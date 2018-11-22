@@ -236,7 +236,7 @@ class SpaceWindow(GameFrame):
 
     def draw_lasers(self):
         colors = (0, 200, 255, 0, 200, 255)
-        for bullet in self.model.bullets:
+        for bullet in self.model.bullets + self.model.alien_bullets:
             graphics.draw(2, graphics.GL_LINES,
                           ('v2f', [self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1]),
