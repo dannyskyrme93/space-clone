@@ -34,7 +34,7 @@ class GameEvent:
 
 
 class Model:
-    tick_speed = 30
+    tick_speed = 20
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
     PLAYER_SPEED = MODEL_WIDTH / 400
@@ -97,7 +97,7 @@ class Model:
         elif not self.ALIEN_MOVE_RIGHT:
             self.BOX_START -= Model.MODEL_WIDTH / 40
             self.BOX_END -= Model.MODEL_WIDTH / 40
-            if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  #TODO
+            if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  # TODO
                 for obj in self.objects[:]:
                     self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
@@ -105,7 +105,7 @@ class Model:
                 for obj in self.objects[:]:
                     self.update_position(obj, -Model.MODEL_WIDTH / 40, 0)
 
-    def player_edge_det(self):
+    def player_edge_check(self):
         if self.player.x <= 0:
             if not self.player.dx >= 0:    # Stops infinite dx = 0 at edges
                 self.player.dx = 0
@@ -119,23 +119,34 @@ class Model:
         elif self.player.dx > 0:
             self.player.dx = Model.PLAYER_SPEED
 
-    def screen_change(self):
+    def player_death_check(self):
         for mob in self.objects[:]:
-            if mob.y <= self.player.y + self.player.height:
+            if mob.y <= 0:  # Monsters off bottom edge of screen
+                self.player.is_active = False
+
+            elif mob.y <= self.player.y + self.player.height:  # Monster touches with player
                 point_list = ((mob.x, mob.y), (mob.x + mob.width, mob.y), (mob.x, mob.y + mob.height),
                               (mob.x + mob.width, mob.y + mob.height))
                 for point in point_list:
                     if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
-                        if self.player.is_active:
-                            self.player.is_active = False
-                            self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
-                                                                                    self.player.y + self.player.height / 2)))
-            if mob.y <= 0:  # Monsters off edge of screen
-                self.player.is_active = False
-                if mob.y + mob.height <= 0:
-                    self.objects.remove(mob)
+                        self.player.is_active = False
 
-    def bullet_hit_det(self):
+    def screen_change(self):
+        if self.player_lives == 0:
+            pass  # game over screen
+        elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
+            pass  # reset screen with next level
+        elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
+            pass  # reset same level, player_lives -= 1
+
+    def alien_ending(self):
+        for mob in self.objects:
+            if mob.y + mob.height <= 0:
+                print(len(self.objects))
+                self.objects.remove(mob)
+            self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
+
+    def bullet_hit_check(self):
         for bullet in self.bullets:
             bullet[1] += self.bullet_dy
 
@@ -155,26 +166,31 @@ class Model:
         piece.x += dx
         piece.y += dy
 
-    def update(self):
-        self.screen_change()
-        if self.tick % Model.tick_speed == 0:
-            if not self.player.is_active:
-                for mob in self.objects:
-                    self.update_position(mob, 0, -Model.tick_speed)
-                print('you lose')
-            else:
-                self.alien_update()
-
-        self.player_speed_trunc()
-        self.player_edge_det()
-        self.update_position(self.player, self.player.dx, self.player.dy)
-        self.bullet_hit_det()
-
+    def timekeeper(self):
         if not self.q_countdown <= 0:
             self.q_countdown -= 1
         if not self.e_countdown <= 0:
             self.e_countdown -= 1
         self.tick += 1
+
+    def update(self):
+        self.player_death_check()
+        if self.tick % Model.tick_speed == 0:
+            self.tick = 0
+            if self.player.is_active:
+                self.alien_update()
+            elif len(self.objects) > 0:
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
+                                                                             self.player.y + self.player.height / 2)))
+                self.alien_ending()
+            else:
+                self.screen_change()
+
+        self.player_speed_trunc()
+        self.player_edge_check()
+        self.update_position(self.player, self.player.dx, self.player.dy)
+        self.bullet_hit_check()
+        self.timekeeper()
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
@@ -182,46 +198,44 @@ class Model:
         x2_ship = self.player.width / float(1.04065)
         y_ship = self.player.height / 1.6
         if action_type == view.KEY_PRESS:
-            print(key_val, " was pressed")
-            if key_val == key.LEFT:
+            if key_val == key.A:
                 if self.player.x <= 0 and self.player.dx < 0:
                     self.keys_pressed += 1
                 else:
                     self.keys_pressed += 1
                     self.player.dx -= Model.PLAYER_SPEED
-            elif key_val == key.RIGHT:
+            elif key_val == key.D:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx > 0:
                     self.keys_pressed += 1
                 else:
                     self.keys_pressed += 1
                     self.player.dx += Model.PLAYER_SPEED
 
-            elif key_val == key.Q and self.q_countdown <= 0:
+            elif key_val == key.LSHIFT and self.q_countdown <= 0:
                 print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
                     self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
                     self.q_countdown = self.countdown
 
-            elif key_val == key.W and self.e_countdown <= 0:
+            elif key_val == key.SPACE and self.e_countdown <= 0:
                 print("Wow! The E has been pressed")
                 if len(self.bullets) < self.bullet_max:
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.e_countdown = self.countdown
 
             elif key_val == key.G:
-                self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # TODO to be removed
+                pass  # TODO to be removed
             elif key_val == key.R:
-                self.events.append(GameEvent(GameEvent.EventType.RESET))  # TODO to be removed
+                pass  # TODO to be removed
 
         if action_type == view.KEY_RELEASE:
-            print(f"{key_val} was pressed")
-            if key_val == key.LEFT:
+            if key_val == key.A:
                 if self.player.x <= 0 or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
                     self.keys_pressed -= 1
                     self.player.dx += Model.PLAYER_SPEED
-            elif key_val == key.RIGHT:
+            elif key_val == key.D:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH or self.keys_pressed == 1 and self.player.dx == 0:
                     self.keys_pressed -= 1
                 else:
