@@ -1,5 +1,6 @@
 from pyglet.window import key
 import enum
+import random
 
 
 class GameObject:
@@ -34,20 +35,22 @@ class GameEvent:
 
 
 class Model:
-    tick_speed = 20
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
     PLAYER_SPEED = MODEL_WIDTH / 400
     ALIEN_WIDTH = MODEL_WIDTH / 25
     ALIEN_HEIGHT = MODEL_HEIGHT / 15
-    ALIEN_Y_OFF = MODEL_HEIGHT / 30     # Offset from top of screen.
-    ALIEN_X_OFF = MODEL_WIDTH / 40      # Offset from side of screen.
+    ALIEN_Y_OFF = MODEL_HEIGHT / 30  # Offset from top of screen.
+    ALIEN_X_OFF = MODEL_WIDTH / 40  # Offset from side of screen.
 
     def __init__(self):
         self.tick = 1
+        self.tick_speed = 20
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
+        self.alien_bullets = []
         self.bullet_max = 4
+        self.alien_bullet_max = 100
         self.bullet_height = Model.MODEL_HEIGHT / 20
         self.bullet_dy = Model.MODEL_HEIGHT / 100
         self.countdown = 20
@@ -55,7 +58,7 @@ class Model:
         self.e_countdown = self.countdown
         self.keys_pressed = 0
         self.events = []
-        self.objects = []   # list of Game Objects, will automatically draw on screen
+        self.objects = []  # list of Game Objects, will automatically draw on screen
         self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                  self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
         self.player_lives = 3
@@ -63,10 +66,10 @@ class Model:
 
         alien_rows = 0
         alien_columns = 0
-        alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT          # Alien spawn y starting point.
-        while alien_y > self.MODEL_HEIGHT / 2 and alien_rows < 4:                  # Alien y spawn endpoint.
-            alien_x = Model.ALIEN_X_OFF * 3                                         # Alien spawn x starting point.
-            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:   # Alien x spawn endpoint.
+        alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
+        while alien_y > self.MODEL_HEIGHT / 2 and alien_rows < 4:  # Alien y spawn endpoint.
+            alien_x = Model.ALIEN_X_OFF * 3  # Alien spawn x starting point.
+            while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:  # Alien x spawn endpoint.
                 self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
 
                 if alien_columns == 0 and alien_rows == 0:
@@ -93,21 +96,25 @@ class Model:
             else:
                 for obj in self.objects[:]:
                     self.update_position(obj, Model.MODEL_WIDTH / 40, 0)
+                    if random.randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
+                        self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
 
         elif not self.ALIEN_MOVE_RIGHT:
             self.BOX_START -= Model.MODEL_WIDTH / 40
             self.BOX_END -= Model.MODEL_WIDTH / 40
-            if self.BOX_START <= 0 + Model.ALIEN_X_OFF:  # TODO
+            if self.BOX_START <= 0 + Model.ALIEN_X_OFF:
                 for obj in self.objects[:]:
                     self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
                 for obj in self.objects[:]:
                     self.update_position(obj, -Model.MODEL_WIDTH / 40, 0)
+                    if random.randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
+                        self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
 
     def player_edge_check(self):
         if self.player.x <= 0:
-            if not self.player.dx >= 0:    # Stops infinite dx = 0 at edges
+            if not self.player.dx >= 0:  # Stops infinite dx = 0 at edges
                 self.player.dx = 0
         elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
             if not self.player.dx <= 0:
@@ -119,32 +126,62 @@ class Model:
         elif self.player.dx > 0:
             self.player.dx = Model.PLAYER_SPEED
 
-    def player_death_check(self):
-        for mob in self.objects[:]:
-            if mob.y <= 0:  # Monsters off bottom edge of screen
-                self.player.is_active = False
+    def player_hitbox_check(self, instance):
+        point_list = ((instance.x, instance.y), (instance.x + instance.width, instance.y),
+                      (instance.x, instance.y + instance.height),
+                      (instance.x + instance.width, instance.y + instance.height))
+        for point in point_list:
+            if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
+                return True
 
-            elif mob.y <= self.player.y + self.player.height:  # Monster touches with player
-                point_list = ((mob.x, mob.y), (mob.x + mob.width, mob.y), (mob.x, mob.y + mob.height),
-                              (mob.x + mob.width, mob.y + mob.height))
-                for point in point_list:
-                    if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
+    def player_death_check(self, bullet=0):
+        if bullet != 0:
+            if self.player.x < bullet[0] < self.player.x + self.player.width and self.player.y < bullet[
+                    1] < self.player.y + self.player.height:
+                self.alien_bullets.remove(bullet)
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
+                                                                             self.player.y + self.player.height / 2)))
+                self.player.is_active = False
+        else:
+            for mob in self.objects[:]:
+                if mob.y <= 0:  # Monsters off bottom edge of screen
+                    self.player.is_active = False
+
+                elif mob.y <= self.player.y + self.player.height:
+                    if self.player_hitbox_check(mob):
                         self.player.is_active = False
 
     def screen_change(self):
         if self.player_lives == 0:
             pass  # game over screen
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
-            pass  # reset screen with next level
+            pass  # reset screen with next level, tick speed faster, more bullets from aliens
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             pass  # reset same level, player_lives -= 1
 
-    def alien_ending(self):
+    def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
             if mob.y + mob.height <= 0:
                 print(len(self.objects))
                 self.objects.remove(mob)
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
+
+    def mob_hit_detect(self, bulla):
+        bullet_tip = (bulla[0], bulla[1] + self.bullet_height)
+        for mob in self.objects[:]:
+            if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
+                self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT, (bullet_tip[0], bullet_tip[1])))
+                self.objects.remove(mob)
+                self.bullets.remove(bulla)
+
+    def alien_bullet_hit_check(self):
+        for bullet in self.alien_bullets:
+            bullet[1] -= self.bullet_dy
+
+            if bullet[1] <= 0:
+                self.alien_bullets.remove(bullet)
+
+            self.player_death_check(bullet)
 
     def bullet_hit_check(self):
         for bullet in self.bullets:
@@ -153,12 +190,7 @@ class Model:
             if bullet[1] >= Model.MODEL_HEIGHT:
                 self.bullets.remove(bullet)
 
-            bullet_tip = (bullet[0], bullet[1] + self.bullet_height)
-            for mob in self.objects[:]:
-                if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
-                    self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT, (bullet_tip[0], bullet_tip[1])))
-                    self.objects.remove(mob)
-                    self.bullets.remove(bullet)
+            self.mob_hit_detect(bullet)
 
     def update_position(self, piece, dx, dy):
         piece.dx = dx
@@ -175,7 +207,7 @@ class Model:
 
     def update(self):
         self.player_death_check()
-        if self.tick % Model.tick_speed == 0:
+        if self.tick % self.tick_speed == 0:
             self.tick = 0
             if self.player.is_active:
                 self.alien_update()
@@ -190,6 +222,7 @@ class Model:
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
         self.bullet_hit_check()
+        self.alien_bullet_hit_check()
         self.timekeeper()
 
     def action(self, key_val: str, action_type: int):
@@ -197,18 +230,15 @@ class Model:
         x1_ship = self.player.width / 32
         x2_ship = self.player.width / float(1.04065)
         y_ship = self.player.height / 1.6
+
         if action_type == view.KEY_PRESS:
             if key_val == key.LEFT:
-                if self.player.x <= 0 and self.player.dx < 0:
-                    self.keys_pressed += 1
-                else:
-                    self.keys_pressed += 1
+                self.keys_pressed += 1
+                if not self.player.x <= 0 and not self.player.dx < 0:
                     self.player.dx -= Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx > 0:
-                    self.keys_pressed += 1
-                else:
-                    self.keys_pressed += 1
+                self.keys_pressed += 1
+                if not self.player.x + self.player.width >= Model.MODEL_WIDTH and not self.player.dx > 0:
                     self.player.dx += Model.PLAYER_SPEED
 
             elif key_val == key.Q and self.q_countdown <= 0:
@@ -225,19 +255,17 @@ class Model:
 
             elif key_val == key.G:
                 pass  # TODO to be removed
+
             elif key_val == key.R:
                 pass  # TODO to be removed
 
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
-                if self.player.x <= 0 or self.keys_pressed == 1 and self.player.dx == 0:
-                    self.keys_pressed -= 1
-                else:
-                    self.keys_pressed -= 1
+                self.keys_pressed -= 1
+                if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
-                if self.player.x + self.player.width >= Model.MODEL_WIDTH or self.keys_pressed == 1 and self.player.dx == 0:
-                    self.keys_pressed -= 1
-                else:
-                    self.keys_pressed -= 1
+                self.keys_pressed -= 1
+                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
+
