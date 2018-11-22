@@ -198,26 +198,26 @@ class Model:
         x2_ship = self.player.width / float(1.04065)
         y_ship = self.player.height / 1.6
         if action_type == view.KEY_PRESS:
-            if key_val == key.A:
+            if key_val == key.LEFT:
                 if self.player.x <= 0 and self.player.dx < 0:
                     self.keys_pressed += 1
                 else:
                     self.keys_pressed += 1
                     self.player.dx -= Model.PLAYER_SPEED
-            elif key_val == key.D:
+            elif key_val == key.RIGHT:
                 if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx > 0:
                     self.keys_pressed += 1
                 else:
                     self.keys_pressed += 1
                     self.player.dx += Model.PLAYER_SPEED
 
-            elif key_val == key.LSHIFT and self.q_countdown <= 0:
+            elif key_val == key.Q and self.q_countdown <= 0:
                 print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
                     self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
                     self.q_countdown = self.countdown
 
-            elif key_val == key.SPACE and self.e_countdown <= 0:
+            elif key_val == key.W and self.e_countdown <= 0:
                 print("Wow! The E has been pressed")
                 if len(self.bullets) < self.bullet_max:
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
