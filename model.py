@@ -1,6 +1,6 @@
 from pyglet.window import key
 import enum
-import random
+from random import randint
 
 
 class GameObject:
@@ -87,46 +87,30 @@ class Model:
             alien_rows += 1
             alien_columns = 0
 
+    def alien_movement_update(self, x_update, y_update):
+        for obj in self.objects[:]:
+            self.update_position(obj, x_update, y_update)
+            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
+                self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
+
     def alien_update(self):
         if self.ALIEN_MOVE_RIGHT:
             self.BOX_START += Model.MODEL_WIDTH / 40
             self.BOX_END += Model.MODEL_WIDTH / 40
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
-                for obj in self.objects[:]:
-                    self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
+                self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
-                for obj in self.objects[:]:
-                    self.update_position(obj, Model.MODEL_WIDTH / 40, 0)
-                    if random.randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
-                        self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
+                self.alien_movement_update(Model.MODEL_WIDTH / 40, 0)
 
         elif not self.ALIEN_MOVE_RIGHT:
             self.BOX_START -= Model.MODEL_WIDTH / 40
             self.BOX_END -= Model.MODEL_WIDTH / 40
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:
-                for obj in self.objects[:]:
-                    self.update_position(obj, 0, -Model.ALIEN_HEIGHT)
+                self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
-                for obj in self.objects[:]:
-                    self.update_position(obj, -Model.MODEL_WIDTH / 40, 0)
-                    if random.randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
-                        self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
-
-    def player_edge_check(self):
-        if self.player.x <= 0:
-            if not self.player.dx >= 0:  # Stops infinite dx = 0 at edges
-                self.player.dx = 0
-        elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
-            if not self.player.dx <= 0:
-                self.player.dx = 0
-
-    def player_speed_trunc(self):
-        if self.player.dx < 0:
-            self.player.dx = -Model.PLAYER_SPEED
-        elif self.player.dx > 0:
-            self.player.dx = Model.PLAYER_SPEED
+                self.alien_movement_update(-Model.MODEL_WIDTH / 40, 0)
 
     def hitbox_check(self, hitter, hitee):
         if hitter in self.objects and hitee == self.player:
@@ -143,6 +127,20 @@ class Model:
         for point in point_list:
             if hitee.x <= point[0] <= hitee.x + hitee.width and hitee.y <= point[1] <= hitee.y + hitee.height:
                 return True
+
+    def player_edge_check(self):
+        if self.player.x <= 0:
+            if not self.player.dx >= 0:  # Stops infinite dx = 0 at edges
+                self.player.dx = 0
+        elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
+            if not self.player.dx <= 0:
+                self.player.dx = 0
+
+    def player_speed_trunc(self):
+        if self.player.dx < 0:
+            self.player.dx = -Model.PLAYER_SPEED
+        elif self.player.dx > 0:
+            self.player.dx = Model.PLAYER_SPEED
 
     def player_death_check(self, bullet=0):
         if bullet == 0:
@@ -174,7 +172,7 @@ class Model:
                 self.objects.remove(mob)
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
 
-    def alien_bullet_hit_check(self):
+    def alien_bullet_update(self):
         for bullet in self.alien_bullets:
             bullet[1] -= self.bullet_dy
 
@@ -184,7 +182,7 @@ class Model:
             if bullet[1] <= self.player.y + self.player.height:
                 self.player_death_check(bullet)
 
-    def bullet_hit_check(self):
+    def bullet_update(self):
         for bullet in self.bullets:
             bullet[1] += self.bullet_dy
 
@@ -218,7 +216,6 @@ class Model:
             if not self.player.is_blown:
                 self.alien_update()
             elif len(self.objects) > 0:
-                self.player.img_name = "x-wing_burnt.png"
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
                                                                              self.player.y + self.player.height / 2)))
                 self.alien_ending()
@@ -226,12 +223,13 @@ class Model:
                 self.player.is_active = False
             else:
                 self.screen_change()
-
+        if self.player.is_blown:
+            self.player.img_name = "x-wing_burnt.png"
         self.player_speed_trunc()
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
-        self.bullet_hit_check()
-        self.alien_bullet_hit_check()
+        self.bullet_update()
+        self.alien_bullet_update()
         self.timekeeper()
 
     def action(self, key_val: str, action_type: int):
@@ -282,4 +280,3 @@ class Model:
                 self.keys_pressed -= 1
                 if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
-
