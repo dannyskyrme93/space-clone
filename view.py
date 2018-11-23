@@ -3,7 +3,7 @@ import pyglet
 from enum import Enum
 from pyglet import graphics
 from pyglet.window import key, Window
-from pyglet.graphics import Batch, GL_QUADS, GL_LINES
+from pyglet.graphics import Batch, GL_QUADS, GL_LINES, GL_TRIANGLE_FAN
 from model import Model, GameObject, GameEvent
 import simpleaudio as sa
 import numpy as np
@@ -64,6 +64,7 @@ class SpaceWindow(GameFrame):
     SOUND_NAMES = ["laser_default"]
     TEST_SOUND_ON = False
     BULLET_HEIGHT_PERCENT = 0.015
+    BULLET_RADIUS_PERCENT = 0.006
 
     def __init__(self):
         super(SpaceWindow, self).__init__()
@@ -236,12 +237,25 @@ class SpaceWindow(GameFrame):
 
     def draw_lasers(self):
         colors = (0, 200, 255, 0, 200, 255)
-        for bullet in self.model.bullets + self.model.alien_bullets:
-            graphics.draw(2, graphics.GL_LINES,
+        for bullet in self.model.bullets:
+            graphics.draw(2, GL_LINES,
                           ('v2f', [self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1]),
                                    self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1] + int(self.BULLET_HEIGHT_PERCENT * self.main_height))]),
+                          ('c3B', colors))
+        radius = SpaceWindow.BULLET_RADIUS_PERCENT * self.width
+        for x, y in self.model.alien_bullets:
+            circ_pts = [self.to_screen_x(x), self.to_screen_y(y) + radius]
+            for theta in np.linspace(0, 2 * math.pi, 40):
+                error = random.randint(-1 * radius // 4, radius // 4)
+                circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
+                                 circ_pts[1] + (radius + error) * math.cos(theta)])
+                num_of_vert = (len(circ_pts) // 2)
+            colors = [255, 255, 255]
+            colors.extend((num_of_vert - 1) * [255, 0, 255])
+            graphics.draw(num_of_vert, GL_TRIANGLE_FAN,
+                          ('v2f', circ_pts),
                           ('c3B', colors))
 
     def draw_header(self):
