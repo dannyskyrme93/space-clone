@@ -2,9 +2,10 @@ import math, random
 import pyglet
 from enum import Enum
 from pyglet import graphics
-from pyglet.window import key, Window
+from pyglet.window import key, Window, mouse
 from pyglet.graphics import Batch, GL_QUADS, GL_LINES, GL_TRIANGLE_FAN
 from model import Model, GameObject, GameEvent
+from functools import partial
 import simpleaudio as sa
 import numpy as np
 
@@ -16,6 +17,7 @@ class GameFrame(Window):
         PLAYING = 0
         MAIN_MENU = 1
         GAME_OVER = 2
+        CLOSING = 3
 
     class KeyAction(Enum):
         KEY_PRESS, KEY_RELEASE = 0, 1
@@ -27,17 +29,19 @@ class GameFrame(Window):
 
     def __init__(self):
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
-        self.model = Model()
         self.set_caption("Space Clone")
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
+        self.model = Model()
         if not self.DEV_MODE:
+            self.screen_context = SpaceWindow.ScreenContext.MAIN_MENU
             self.set_fullscreen(True)
             self.main_width = self.width
             ratio = self.header_height / self.main_height
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
         else:
+            self.screen_context = SpaceWindow.ScreenContext.PLAYING
             self.fps_display = None
             self.set_location(220, 30)
             self.width = self.main_width
@@ -51,27 +55,48 @@ class GameFrame(Window):
         return self.main_height * mod_y // self.model.MODEL_HEIGHT
 
     def on_key_press(self, symbol, modifiers):
-        self.model.action(symbol, KEY_PRESS)
+        if self.screen_context != GameFrame.ScreenContext.MAIN_MENU:
+            self.model.action(symbol, KEY_PRESS)
 
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             self.close()
-        else:
+        elif self.screen_context != GameFrame.ScreenContext.MAIN_MENU:
             self.model.action(symbol, KEY_RELEASE)
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if button == mouse.LEFT and self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+            self.menu_mouse_action(x, y)
+
+    def set_context(self, context):
+        self.screen_context = context
+
+    def menu_mouse_action(self, x, y):
+        pass
 
 
 class SpaceWindow(GameFrame):
-    SOUND_NAMES = ["laser_default"]
     TEST_SOUND_ON = False
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
+    MAIN_BTN_LBLS = ["START_GAME", "OPTIONS", "EXIT"]
+    MAIN_BTN_CONTEXTS = [GameFrame.ScreenContext.PLAYING,
+                        GameFrame.ScreenContext.MAIN_MENU,
+                        GameFrame.ScreenContext.CLOSING]
+    MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
 
     def __init__(self):
         super(SpaceWindow, self).__init__()
-        self.screen_context = SpaceWindow.ScreenContext.PLAYING
         pyglet.font.add_file('res/8-BIT WONDER.ttf')
         self.bit_font = pyglet.font.load('8Bit Wonder')
 
+        btn_width, btn_height = self.width * SpaceWindow.MAIN_BTN_WIDTH_PERCENT, \
+                                self.height * SpaceWindow.MAIN_BTN_HEIGHT_PERCENT
+        self.main_btns = [
+            Button(SpaceWindow.MAIN_BTN_LBLS[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
+                   y * self.height * SpaceWindow.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
+                   partial(self.set_context, SpaceWindow.MAIN_BTN_CONTEXTS[y]))
+            for y in range(0, len(SpaceWindow.MAIN_BTN_LBLS))]
         self.head_lbl = None
         self.tick = 0
         self.img_base = dict()
@@ -82,8 +107,6 @@ class SpaceWindow(GameFrame):
         self.pixel_spills = []
 
         self.reset_flame_colours()
-        self.sounds = {}
-        self.load_sounds()
 
     def set_clock(self, clock: pyglet):
         if self.DEV_MODE:
@@ -111,8 +134,6 @@ class SpaceWindow(GameFrame):
         star_batch.draw()
 
     def on_draw(self):
-        if self.tick % 5000 == 0 and not self.DEV_MODE:
-            self.sounds["laser_default"].play()
         self.trigger_events()
         self.model.events = []
 
@@ -139,6 +160,24 @@ class SpaceWindow(GameFrame):
                                               anchor_x='center', anchor_y='center',
                                               color=(255, 255, 255, 255))
             self.head_lbl.draw()
+        elif self.screen_context == SpaceWindow.ScreenContext.MAIN_MENU:
+            self.draw_main_btns()
+
+    def draw_main_btns(self):
+        for btn in self.main_btns:
+            graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
+                                                btn.x - btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y - btn.height // 2]],
+                          ['c3B', Button.COLOR])
+            btn_lbl = pyglet.text.Label(btn.lbl,
+                                              font_name='8Bit Wonder',
+                                              font_size=0.3 * btn.height,
+                                              width=btn.width, height=0.5*btn.height,
+                                              x=btn.x, y=btn.y,
+                                              anchor_x='center', anchor_y='center',
+                                              color=(255, 255, 255, 255))
+            btn_lbl.draw()
 
     def trigger_events(self):
         for ev in self.model.events:
@@ -275,12 +314,19 @@ class SpaceWindow(GameFrame):
                                           color=(255, 255, 255, 255))
         self.head_lbl.draw()
 
-    def load_sounds(self):
-        for name in self.SOUND_NAMES:
-            self.sounds[name] = sa.WaveObject.from_wave_file("audio/" + name + ".wav")
-
     def update(self, dt):
-        self.model.update()
+        if self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+            pass
+        elif self.screen_context == GameFrame.ScreenContext.CLOSING:
+            self.close()
+        else:
+            self.model.update()
+
+    def menu_mouse_action(self, x, y):
+        if self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+            for btn in self.main_btns:
+                if btn.is_on(x, y):
+                    btn.click()
 
 
 class PixelSpillBlock:
@@ -313,6 +359,27 @@ class PixelSpillBlock:
         if self.size <= 0:
             self.is_vanished = True
             self.size = 0
+
+
+class Button:
+    COLOR = 4 * [125, 125, 125]
+
+    def __init__(self, lbl, x, y, width, height, func):
+        self.lbl = lbl
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.func = func
+
+    def is_on(self, x, y):
+        if self.x - self.width //2 <= x <= self.x + self.width // 2 \
+                and self.y - self.height // 2 <= y <= self.y + self.height // 2:
+            return True
+        return False
+
+    def click(self):
+        self.func()
 
 
 if __name__ == '__main__':
