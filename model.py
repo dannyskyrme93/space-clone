@@ -37,13 +37,14 @@ class GameEvent:
 class Model:
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
-    PLAYER_SPEED = MODEL_WIDTH / 400
+    PLAYER_SPEED = MODEL_WIDTH / 200
     ALIEN_WIDTH = MODEL_WIDTH / 25
     ALIEN_HEIGHT = MODEL_HEIGHT / 15
     ALIEN_Y_OFF = MODEL_HEIGHT / 30  # Offset from top of screen.
     ALIEN_X_OFF = MODEL_WIDTH / 40  # Offset from side of screen.
 
     def __init__(self):
+        self.dev_mode = True
         self.tick = 1
         self.tick_speed = 20
         self.ALIEN_MOVE_RIGHT = True
@@ -126,30 +127,36 @@ class Model:
         elif self.player.dx > 0:
             self.player.dx = Model.PLAYER_SPEED
 
-    def player_hitbox_check(self, instance):
-        point_list = ((instance.x, instance.y), (instance.x + instance.width, instance.y),
-                      (instance.x, instance.y + instance.height),
-                      (instance.x + instance.width, instance.y + instance.height))
+    def hitbox_check(self, hitter, hitee):
+        if hitter in self.objects and hitee == self.player:
+            point_list = ((hitter.x, hitter.y), (hitter.x + hitter.width, hitter.y),
+                          (hitter.x, hitter.y + hitter.height),
+                          (hitter.x + hitter.width, hitter.y + hitter.height))
+        elif hitter in self.bullets:
+            point_list = ((hitter[0], hitter[1] + self.bullet_height), (0, 0))  # TODO why we need to add filler parameter?
+        elif hitter in self.alien_bullets:
+            point_list = ((hitter[0], hitter[1]), (0, 0))
+        else:
+            return 0
+
         for point in point_list:
-            if self.player.x <= point[0] <= self.player.x + self.player.width and self.player.y <= point[1]:
+            if hitee.x <= point[0] <= hitee.x + hitee.width and hitee.y <= point[1] <= hitee.y + hitee.height:
                 return True
 
     def player_death_check(self, bullet=0):
-        if bullet != 0:
-            if self.player.x < bullet[0] < self.player.x + self.player.width and self.player.y < bullet[
-                    1] < self.player.y + self.player.height:
-                self.alien_bullets.remove(bullet)
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
-                                                                             self.player.y + self.player.height / 2)))
-                self.player.is_active = False
-        else:
+        if bullet == 0:
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
                     self.player.is_active = False
 
                 elif mob.y <= self.player.y + self.player.height:
-                    if self.player_hitbox_check(mob):
+                    if self.hitbox_check(mob, self.player):
                         self.player.is_active = False
+
+        else:
+            if self.hitbox_check(bullet, self.player):
+                self.alien_bullets.remove(bullet)
+                self.player.is_active = False
 
     def screen_change(self):
         if self.player_lives == 0:
@@ -166,14 +173,6 @@ class Model:
                 self.objects.remove(mob)
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
 
-    def mob_hit_detect(self, bulla):
-        bullet_tip = (bulla[0], bulla[1] + self.bullet_height)
-        for mob in self.objects[:]:
-            if mob.x < bullet_tip[0] < mob.x + mob.width and mob.y < bullet_tip[1] < mob.y + mob.height:
-                self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT, (bullet_tip[0], bullet_tip[1])))
-                self.objects.remove(mob)
-                self.bullets.remove(bulla)
-
     def alien_bullet_hit_check(self):
         for bullet in self.alien_bullets:
             bullet[1] -= self.bullet_dy
@@ -181,7 +180,8 @@ class Model:
             if bullet[1] <= 0:
                 self.alien_bullets.remove(bullet)
 
-            self.player_death_check(bullet)
+            if bullet[1] <= self.player.y + self.player.height:
+                self.player_death_check(bullet)
 
     def bullet_hit_check(self):
         for bullet in self.bullets:
@@ -190,7 +190,12 @@ class Model:
             if bullet[1] >= Model.MODEL_HEIGHT:
                 self.bullets.remove(bullet)
 
-            self.mob_hit_detect(bullet)
+            for mob in self.objects[:]:
+                if self.hitbox_check(bullet, mob):
+                    self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT,
+                                                 (bullet[0], bullet[1] + self.bullet_height)))
+                    self.objects.remove(mob)
+                    self.bullets.remove(bullet)
 
     def update_position(self, piece, dx, dy):
         piece.dx = dx
@@ -253,11 +258,16 @@ class Model:
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.e_countdown = self.countdown
 
-            elif key_val == key.G:
-                pass  # TODO to be removed
+            elif key_val == key.Z:
+                self.dev_mode = not self.dev_mode
+                print("dev mode!")
 
-            elif key_val == key.R:
-                pass  # TODO to be removed
+            if self.dev_mode or view.GameFrame.DEV_MODE:
+                if key_val == key.G:
+                    self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+
+                if key_val == key.R:
+                    self.events.append(GameEvent(GameEvent.EventType.RESET))
 
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
