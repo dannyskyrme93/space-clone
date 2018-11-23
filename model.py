@@ -13,6 +13,7 @@ class GameObject:
         self.dx = 0
         self.dy = 0
         self.is_active = True
+        self.is_blown = False
 
 
 class Alien(GameObject):
@@ -147,16 +148,16 @@ class Model:
         if bullet == 0:
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
-                    self.player.is_active = False
+                    self.player.is_blown = True
 
                 elif mob.y <= self.player.y + self.player.height:
                     if self.hitbox_check(mob, self.player):
-                        self.player.is_active = False
+                        self.player.is_blown = True
 
         else:
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
-                self.player.is_active = False
+                self.player.is_blown = True
 
     def screen_change(self):
         if self.player_lives == 0:
@@ -214,12 +215,15 @@ class Model:
         self.player_death_check()
         if self.tick % self.tick_speed == 0:
             self.tick = 0
-            if self.player.is_active:
+            if not self.player.is_blown:
                 self.alien_update()
             elif len(self.objects) > 0:
+                self.player.img_name = "x-wing_burnt.png"
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
                                                                              self.player.y + self.player.height / 2)))
                 self.alien_ending()
+            elif len(self.objects) == 0:
+                self.player.is_active = False
             else:
                 self.screen_change()
 
