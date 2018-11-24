@@ -4,9 +4,8 @@ from enum import Enum
 from pyglet import graphics
 from pyglet.window import key, Window, mouse
 from pyglet.graphics import Batch, GL_QUADS, GL_LINES, GL_TRIANGLE_FAN
-from model import Model, GameObject, GameEvent
+from model import Model, GameEvent
 from functools import partial
-import simpleaudio as sa
 import numpy as np
 
 KEY_PRESS, KEY_RELEASE = 0, 1
@@ -33,15 +32,17 @@ class GameFrame(Window):
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
         self.model = Model()
+        self.screen_context = None
         if not self.DEV_MODE:
-            self.screen_context = SpaceWindow.ScreenContext.MAIN_MENU
+            self.set_context(SpaceWindow.ScreenContext.MAIN_MENU)
             self.set_fullscreen(True)
             self.main_width = self.width
             ratio = self.header_height / self.main_height
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
+            self.play_main_menu_music()
         else:
-            self.screen_context = SpaceWindow.ScreenContext.PLAYING
+            self.set_context(SpaceWindow.ScreenContext.PLAYING)
             self.fps_display = None
             self.set_location(220, 30)
             self.width = self.main_width
@@ -69,10 +70,21 @@ class GameFrame(Window):
             self.menu_mouse_action(x, y)
 
     def set_context(self, context):
+        if context == GameFrame.ScreenContext.PLAYING and not GameFrame.DEV_MODE:
+            self.set_mouse_visible(False)
+        else:
+            self.set_mouse_visible(True)
         self.screen_context = context
 
     def menu_mouse_action(self, x, y):
-        pass
+        @property
+        def path(self):
+            raise NotImplementedError
+
+    def play_main_menu_music(self):
+        @property
+        def path(self):
+            raise NotImplementedError
 
 
 class SpaceWindow(GameFrame):
@@ -81,8 +93,8 @@ class SpaceWindow(GameFrame):
     BULLET_RADIUS_PERCENT = 0.006
     MAIN_BTN_LBLS = ["START_GAME", "OPTIONS", "EXIT"]
     MAIN_BTN_CONTEXTS = [GameFrame.ScreenContext.PLAYING,
-                        GameFrame.ScreenContext.MAIN_MENU,
-                        GameFrame.ScreenContext.CLOSING]
+                         GameFrame.ScreenContext.MAIN_MENU,
+                         GameFrame.ScreenContext.CLOSING]
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
 
     def __init__(self):
@@ -111,10 +123,6 @@ class SpaceWindow(GameFrame):
     def set_clock(self, clock: pyglet):
         if self.DEV_MODE:
             self.fps_display = clock.ClockDisplay()
-
-    def reset(self):
-        print("Resetting")
-        self.screen_context = SpaceWindow.ScreenContext.PLAYING
 
     def generate_stars(self):
         self.star_pts = []
@@ -171,12 +179,12 @@ class SpaceWindow(GameFrame):
                                                 btn.x + btn.width // 2, btn.y - btn.height // 2]],
                           ['c3B', Button.COLOR])
             btn_lbl = pyglet.text.Label(btn.lbl,
-                                              font_name='8Bit Wonder',
-                                              font_size=0.3 * btn.height,
-                                              width=btn.width, height=0.5*btn.height,
-                                              x=btn.x, y=btn.y,
-                                              anchor_x='center', anchor_y='center',
-                                              color=(255, 255, 255, 255))
+                                        font_name='8Bit Wonder',
+                                        font_size=0.3 * btn.height,
+                                        width=btn.width, height=0.5 * btn.height,
+                                        x=btn.x, y=btn.y,
+                                        anchor_x='center', anchor_y='center',
+                                        color=(255, 255, 255, 255))
             btn_lbl.draw()
 
     def trigger_events(self):
@@ -191,10 +199,10 @@ class SpaceWindow(GameFrame):
                                          colours, 1, 0.66)
             elif ev.type == GameEvent.EventType.GAME_OVER:
                 print("Game Over")
-                self.screen_context = SpaceWindow.ScreenContext.GAME_OVER
+                self.set_context(SpaceWindow.ScreenContext.GAME_OVER)
             elif ev.type == GameEvent.EventType.RESET:
-                print("reset")
-                self.reset()
+                print("Reset")
+                self.set_context(SpaceWindow.ScreenContext.PLAYING)
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
@@ -290,7 +298,7 @@ class SpaceWindow(GameFrame):
                 error = random.randint(-1 * radius // 4, radius // 4)
                 circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
                                  circ_pts[1] + (radius + error) * math.cos(theta)])
-                num_of_vert = (len(circ_pts) // 2)
+            num_of_vert = (len(circ_pts) // 2)
             colors = [255, 255, 255]
             colors.extend((num_of_vert - 1) * [255, 0, 255])
             graphics.draw(num_of_vert, GL_TRIANGLE_FAN,
@@ -328,6 +336,9 @@ class SpaceWindow(GameFrame):
                 if btn.is_on(x, y):
                     btn.click()
 
+    def play_main_menu_music(self):
+        src = pyglet.media.load("audio/space_clones.mp3")
+        src.play()
 
 class PixelSpillBlock:
     DEF_COLOUR = (255, 255, 255)
@@ -373,7 +384,7 @@ class Button:
         self.func = func
 
     def is_on(self, x, y):
-        if self.x - self.width //2 <= x <= self.x + self.width // 2 \
+        if self.x - self.width // 2 <= x <= self.x + self.width // 2 \
                 and self.y - self.height // 2 <= y <= self.y + self.height // 2:
             return True
         return False
