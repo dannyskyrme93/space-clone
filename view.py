@@ -24,7 +24,7 @@ class GameFrame(Window):
     main_width: int = 1700
     main_height: int = 800
     header_height: int = 50
-    DEV_MODE = False
+    DEV_MODE = True
 
     def __init__(self):
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
