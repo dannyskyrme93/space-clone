@@ -24,7 +24,7 @@ class GameFrame(Window):
     main_width: int = 1700
     main_height: int = 800
     header_height: int = 50
-    DEV_MODE = True
+    DEV_MODE = False
 
     def __init__(self):
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
@@ -120,7 +120,7 @@ class SpaceWindow(GameFrame):
 
         self.reset_flame_colours()
 
-    def set_clock(self, clock: pyglet):
+    def set_clock(self, clock):
         if self.DEV_MODE:
             self.fps_display = clock.ClockDisplay()
 

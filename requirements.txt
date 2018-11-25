@@ -1,0 +1,5 @@
+future==0.16.0
+numpy==1.15.4
+pip==18.1
+pyglet==1.3.2
+setuptools== 9.1.0
