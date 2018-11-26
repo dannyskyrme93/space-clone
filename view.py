@@ -210,9 +210,8 @@ class SpaceWindow(GameFrame):
             elif ev.type == GameEvent.EventType.RESET:
                 print("Reset")
                 self.set_context(SpaceWindow.ScreenContext.PLAYING)
-            if hasattr(ev, 'sound'):
-                if ev.sound is not None:
-                    self.play_sound(ev.sound)
+            if not self.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
+                self.play_sound(ev.sound)
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
