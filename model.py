@@ -1,25 +1,27 @@
 from pyglet.window import key
 import enum
 from random import randint
+from abc import ABCMeta, abstractmethod
 
 
-class GameObject:
-    def __init__(self, x, y, width, height, img_name):
-        self.x = x  # x-coordinate from 0 to MODEL_WIDTH
-        self.y = y  # y-coordinate from 0 to MODEL_HEIGHT
-        self.img_name = img_name  # file name without folder dir (img) but with the extension (.png, .jpg etc)
-        self.width = width
-        self.height = height
-        self.dx = 0
-        self.dy = 0
-        self.is_active = True
-        self.is_blown = False
+class GameModel:
+    MODEL_WIDTH = 800
+    MODEL_HEIGHT = 600
 
+    def __init__(self):
+        super().__init__(GameModel, self)
 
-class Alien(GameObject):
-    def __init__(self, x, y, width, height, img_name):
-        super().__init__(x, y, width, height, img_name)
-        self.dx = 1
+    @abstractmethod
+    def update(self, dt):
+        pass
+
+    @abstractmethod
+    def get_game_events(self, dt):
+        pass
+
+    @abstractmethod
+    def action(self):
+        pass
 
 
 class GameEvent:
@@ -35,14 +37,25 @@ class GameEvent:
         self.coordinates = coordinates
 
 
-class Model:
-    MODEL_WIDTH = 800
-    MODEL_HEIGHT = 600
-    PLAYER_SPEED = MODEL_WIDTH / 200
-    ALIEN_WIDTH = MODEL_WIDTH / 25
-    ALIEN_HEIGHT = MODEL_HEIGHT / 15
-    ALIEN_Y_OFF = MODEL_HEIGHT / 30  # Offset from top of screen.
-    ALIEN_X_OFF = MODEL_WIDTH / 40  # Offset from side of screen.
+class GameObject:
+    def __init__(self, x, y, width, height, img_name):
+        self.x = x  # x-coordinate from 0 to MODEL_WIDTH
+        self.y = y  # y-coordinate from 0 to MODEL_HEIGHT
+        self.img_name = img_name  # file name without folder dir (img) but with the extension (.png, .jpg etc)
+        self.width = width
+        self.height = height
+        self.dx = 0
+        self.dy = 0
+        self.is_active = True
+        self.is_blown = False
+
+
+class Model(GameModel):
+    PLAYER_SPEED = GameModel.MODEL_WIDTH / 200
+    ALIEN_WIDTH = GameModel.MODEL_WIDTH / 25
+    ALIEN_HEIGHT = GameModel.MODEL_HEIGHT / 15
+    ALIEN_Y_OFF = GameModel.MODEL_HEIGHT / 30  # Offset from top of screen.
+    ALIEN_X_OFF = GameModel.MODEL_WIDTH / 40  # Offset from side of screen.
 
     def __init__(self):
         self.dev_mode = True
@@ -87,10 +100,13 @@ class Model:
             alien_rows += 1
             alien_columns = 0
 
+    def get_game_events(self):
+        return self.events
+
     def alien_movement_update(self, x_update, y_update):
         for obj in self.objects[:]:
             self.update_position(obj, x_update, y_update)
-            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max:  # TODO
+            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max and obj.y >= Model.MODEL_HEIGHT / 3:
                 self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
 
     def alien_update(self):
@@ -118,7 +134,8 @@ class Model:
                           (hitter.x, hitter.y + hitter.height),
                           (hitter.x + hitter.width, hitter.y + hitter.height))
         elif hitter in self.bullets:
-            point_list = ((hitter[0], hitter[1] + self.bullet_height), (0, 0))  # TODO why we need to add filler parameter?
+            point_list = (
+                (hitter[0], hitter[1] + self.bullet_height), (0, 0))  # TODO why we need to add filler parameter?
         elif hitter in self.alien_bullets:
             point_list = ((hitter[0], hitter[1]), (0, 0))
         else:
@@ -209,7 +226,7 @@ class Model:
             self.e_countdown -= 1
         self.tick += 1
 
-    def update(self):
+    def update(self, dt):
         self.player_death_check()
         if self.tick % self.tick_speed == 0:
             self.tick = 0
@@ -280,3 +297,9 @@ class Model:
                 self.keys_pressed -= 1
                 if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
+
+
+class Alien(GameObject):
+    def __init__(self, x, y, width, height, img_name):
+        super().__init__(x, y, width, height, img_name)
+        self.dx = 1
