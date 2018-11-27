@@ -89,7 +89,6 @@ class SpaceWindow(GameFrame):
                 colour = 4 * PixelSpillBlock.BLOOD_COLOUR
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
                                          [colour], 0.5, 1)
-                print("Event recieved:", )
             elif ev.type == GameEvent.EventType.EXPLOSION:
                 colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
@@ -99,10 +98,12 @@ class SpaceWindow(GameFrame):
                 self.set_context(SpaceWindow.ScreenContext.GAME_OVER)
             elif ev.type == GameEvent.EventType.RESET:
                 print("Reset")
-                self.set_context(SpaceWindow.ScreenContext.PLAYING)
+                self.model = Model()
+                self.pixel_spills = []
+                self.set_context(SpaceWindow.ScreenContext.MAIN_MENU)
             if not self.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
-            print("Event recieved: ", str(ev))
+            print("Event recieved: ", ev.type)
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
