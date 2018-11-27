@@ -98,6 +98,7 @@ class GameFrame(Window):
         elif self.screen_context == GameFrame.ScreenContext.GAME_OVER:
             self.draw_game_over_screen()
         elif self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+            self.clear()
             self.draw_main_btns()
 
     def menu_mouse_action(self, x, y):
