@@ -29,8 +29,11 @@ class GameFrame(Window):
     class KeyAction(Enum):
         KEY_PRESS, KEY_RELEASE = 0, 1
 
+
     DEFAULT_MENU = ["START", "PREFERENCES", "QUIT"]
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
+    COOLDOWN = 0
+
 
     main_width: int = 1700
     main_height: int = 800
@@ -40,8 +43,8 @@ class GameFrame(Window):
         self.main_contexts = [GameFrame.ScreenContext.PLAYING,
                               GameFrame.ScreenContext.MAIN_MENU,
                               GameFrame.ScreenContext.CLOSING]
-        self.model: GameModel()
-        self.set_model()
+        self.cooldown = 0
+        self.to_clear = False
         self.dev_mode = dev_mode
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
         self.main_menu_song = None
@@ -82,23 +85,31 @@ class GameFrame(Window):
             self.menu_mouse_action(x, y)
 
     def set_context(self, context):
-        if context == GameFrame.ScreenContext.PLAYING and not self.dev_mode:
-            self.set_mouse_visible(False)
-            if self.main_menu_song is not None:
-                self.main_menu_song.pause()
-                self.main_menu_song.delete()
-                self.main_menu_song = None
+        if context == GameFrame.ScreenContext.PLAYING:
+            self.cooldown = self.get_start_cooldown()
+            if not self.dev_mode:
+                self.set_mouse_visible(False)
+                if self.main_menu_song is not None:
+                    self.main_menu_song.pause()
+                    self.main_menu_song.delete()
+                    self.main_menu_song = None
+            if not self.model:
+                self.set_model()
         else:
             self.set_mouse_visible(True)
         self.screen_context = context
 
     def on_draw(self):
-        if self.screen_context == GameFrame.ScreenContext.PLAYING:
-            self.draw_playing_screen()
+        if self.to_clear:
+            self.clear()
+        if self.screen_context == GameFrame.ScreenContext.PLAYING and self.cooldown == 0:
+            if self.model:
+                self.draw_playing_screen()
         elif self.screen_context == GameFrame.ScreenContext.GAME_OVER:
             self.draw_game_over_screen()
-        elif self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+        elif self.screen_context == GameFrame.ScreenContext.MAIN_MENU or self.cooldown > 0:
             self.clear()
+            self.draw_main_menu_background()
             self.draw_main_btns()
 
     def menu_mouse_action(self, x, y):
@@ -122,6 +133,18 @@ class GameFrame(Window):
                                         anchor_x='center', anchor_y='center',
                                         color=(255, 255, 255, 255))
             btn_lbl.draw()
+
+    @abstractmethod
+    def get_start_cooldown(self):
+        return 0
+
+    @abstractmethod
+    def reset(self):
+        self.model: GameModel = GameModel
+
+    @abstractmethod
+    def draw_main_menu_background(self):
+        pass
 
     @abstractmethod
     def set_btns(self):

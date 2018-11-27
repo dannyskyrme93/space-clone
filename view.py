@@ -18,11 +18,15 @@ class SpaceWindow(GameFrame):
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
+    STAR_MOVE_SPEED = 30
+    STAR_SIZE = 1
+    COOLDOWN = 75
 
     def __init__(self, dev_mode=False):
         super(SpaceWindow, self).__init__(dev_mode)
+        self.model = None
+        self.menu_grad_motion = 0
         self.set_caption("Space Clone")
-        self.model = Model()
         pyglet.font.add_file('res/8-BIT WONDER.ttf')
         self.bit_font = pyglet.font.load('8Bit Wonder')
         self.set_btns()
@@ -35,22 +39,35 @@ class SpaceWindow(GameFrame):
         self.rendered_sprite = []
         self.pixel_spills = []
         self.star_batch = []
+        self.cooldown = 0
 
         self.reset_flame_colours()
 
     def get_btn_labels(self):
-        return ("START_GAME", "OPTIONS", "EXIT")
+        return "START_GAME", "OPTIONS", "EXIT"
 
     def generate_stars(self):
         self.star_pts = []
-        star_width = 1
         for i in range(0, 400):
             x = math.floor(random.random() * self.main_width)
             y = math.floor(random.random() * self.main_height)
-            self.star_pts.extend({(x, y,
-                                   x + star_width, y,
-                                   x + star_width, y + star_width,
-                                   x, y + star_width)})
+            self.star_pts.extend([[x, y,
+                                   x + SpaceWindow.STAR_SIZE, y,
+                                   x + SpaceWindow.STAR_SIZE, y + SpaceWindow.STAR_SIZE,
+                                   x, y + SpaceWindow.STAR_SIZE]])
+
+    def update_stars(self):
+        for i, val in enumerate(self.star_pts):
+            is_loop = False
+            to_move = SpaceWindow.STAR_MOVE_SPEED
+            if self.screen_context == GameFrame.ScreenContext.PLAYING:
+                to_move = (self.cooldown / SpaceWindow.COOLDOWN) * SpaceWindow.STAR_MOVE_SPEED
+            if self.star_pts[i][2] + to_move >= self.width - SpaceWindow.STAR_SIZE:
+                is_loop = True
+            for j in range(0, len(self.star_pts[i]), 2):
+                self.star_pts[i][j] = (self.star_pts[i][j] + to_move)
+                if is_loop:
+                    self.star_pts[i][j] -= self.width
 
     def draw_stars(self):
         star_batch = Batch()
@@ -61,16 +78,20 @@ class SpaceWindow(GameFrame):
     def draw_playing_screen(self):
         window.clear()
         self.draw_stars()
-        ship = self.model.player
-        self.draw_lasers()
-        if ship.is_active:
-            self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
-        self.draw_sprite_objs()
-        self.draw_pixel_spills()
-        self.draw_header()
-        if self.dev_mode:
-            self.fps_display.draw()
-        self.tick += 1
+        if self.cooldown == 0:
+            self.draw_stars()
+            ship = self.model.player
+            self.draw_lasers()
+            if ship.is_active:
+                self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
+            self.draw_sprite_objs()
+            self.draw_pixel_spills()
+            self.draw_header()
+            if self.dev_mode:
+                self.fps_display.draw()
+            self.tick += 1
+        else:
+            self.draw_main_btns()
 
     def draw_game_over_screen(self):
         self.game_over_lbl = pyglet.text.Label("You Lose Idiot",
@@ -81,6 +102,9 @@ class SpaceWindow(GameFrame):
                                                anchor_x='center', anchor_y='center',
                                                color=(255, 255, 255, 255))
         self.game_over_lbl.draw()
+
+    def draw_main_menu_background(self):
+        self.draw_stars()
 
     def trigger_events(self):
         events = self.model.get_game_events()
@@ -98,12 +122,19 @@ class SpaceWindow(GameFrame):
                 self.set_context(SpaceWindow.ScreenContext.GAME_OVER)
             elif ev.type == GameEvent.EventType.RESET:
                 print("Reset")
-                self.model = Model()
-                self.pixel_spills = []
-                self.set_context(SpaceWindow.ScreenContext.MAIN_MENU)
+                self.reset()
             if not self.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             print("Event recieved: ", ev.type)
+
+    def set_model(self):
+        self.model = Model()
+
+    def reset(self):
+        self.to_clear = True
+        self.set_model()
+        self.pixel_spills = []
+        self.set_context(SpaceWindow.ScreenContext.PLAYING)
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
@@ -154,13 +185,15 @@ class SpaceWindow(GameFrame):
         for px in self.pixel_spills:
             px.update(self.tick)
         self.pixel_spills[:] = [val for val in self.pixel_spills if not val.is_vanished]
+        num_of = 0
+        px_vertices = []
+        colours = []
         for px in self.pixel_spills:
-            colours = px.colour
-            pxl_batch.add(4, GL_QUADS, None,
-                          ('v2f', (px.x, px.y, px.x, px.y + px.size,
-                                   px.x + px.size, px.y + px.size, px.x + px.size, px.y)),
-                          ('c3B', colours)
-                          )
+            num_of += 4
+            px_vertices.extend((px.x, px.y, px.x, px.y + px.size,
+                                px.x + px.size, px.y + px.size, px.x + px.size, px.y))
+            colours.extend(px.colour)
+        pxl_batch.add(num_of, GL_QUADS, None, ('v2f', px_vertices), ('c3B', colours))
         pxl_batch.draw()
 
     def draw_flame(self, x, y, width):
@@ -223,11 +256,18 @@ class SpaceWindow(GameFrame):
         self.head_lbl.draw()
 
     def update(self, dt):
-        self.model.events = []
+        print(self.screen_context)
+        if self.screen_context == GameFrame.ScreenContext.MAIN_MENU or self.cooldown > 0:
+            self.update_stars()
         if self.screen_context == GameFrame.ScreenContext.CLOSING:
             self.close()
         elif self.screen_context != GameFrame.ScreenContext.MAIN_MENU:
-            self.model.update(dt)
+            if self.cooldown > 0:
+                self.cooldown -= 1
+                print(self.cooldown)
+            else:
+                self.model.events = []
+                self.model.update(dt)
             self.trigger_events()
 
     def play_main_menu_music(self):
@@ -236,6 +276,9 @@ class SpaceWindow(GameFrame):
     def play_sound(self, sound_name: str):
         src = pyglet.media.load("audio/" + sound_name)
         src.play()
+
+    def get_start_cooldown(self):
+        return SpaceWindow.COOLDOWN
 
 
 class PixelSpillBlock:
