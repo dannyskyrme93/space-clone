@@ -24,7 +24,6 @@ class SpaceWindow(GameFrame):
 
     def __init__(self, dev_mode=False):
         super(SpaceWindow, self).__init__(dev_mode)
-        self.model = None
         self.menu_grad_motion = 0
         self.set_caption("Space Clone")
         pyglet.font.add_file('res/8-BIT WONDER.ttf')
@@ -266,6 +265,8 @@ class SpaceWindow(GameFrame):
                 self.cooldown -= 1
                 print(self.cooldown)
             else:
+                if not self.model:
+                    self.reset()
                 self.model.events = []
                 self.model.update(dt)
             self.trigger_events()

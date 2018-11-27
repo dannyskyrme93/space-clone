@@ -43,6 +43,7 @@ class GameFrame(Window):
         self.main_contexts = [GameFrame.ScreenContext.PLAYING,
                               GameFrame.ScreenContext.MAIN_MENU,
                               GameFrame.ScreenContext.CLOSING]
+        self.model = None
         self.cooldown = 0
         self.to_clear = False
         self.dev_mode = dev_mode
@@ -50,7 +51,6 @@ class GameFrame(Window):
         self.main_menu_song = None
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
-        self.screen_context = None
         self.set_btns()
         if not self.dev_mode:
             self.set_context(GameFrame.ScreenContext.MAIN_MENU)
@@ -63,6 +63,7 @@ class GameFrame(Window):
             self.sound_base = {}
             self.play_main_menu_music()
         else:
+            self.set_model()
             self.set_context(GameFrame.ScreenContext.PLAYING)
             self.fps_display = pyglet.clock.ClockDisplay()
             self.set_location(220, 30)
