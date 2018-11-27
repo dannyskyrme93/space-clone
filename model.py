@@ -8,9 +8,6 @@ class GameModel:
     MODEL_WIDTH = 800
     MODEL_HEIGHT = 600
 
-    def __init__(self):
-        super().__init__(GameModel, self)
-
     @abstractmethod
     def update(self, dt):
         pass
@@ -31,10 +28,20 @@ class GameEvent:
         EXPLOSION = 3
         GAME_OVER = 4
         RESET = 5
+        NEXT_LEVEL = 6
+        LIFE_LOST = 7
+        ALIEN_1_FIRE = 8
+        PLAYER_FIRE = 9
+        RESET_SCREEN = 10
 
-    def __init__(self, type_of, coordinates=None):
+    def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
         self.coordinates = coordinates
+        self.sound = sound
+        self.args = args
+
+    def __repr__(self):
+        return f'{self.type}, at: {self.coordinates}\nwith sound: {self.sound} and args: {self.args}.'
 
 
 class GameObject:
@@ -58,6 +65,7 @@ class Model(GameModel):
     ALIEN_X_OFF = GameModel.MODEL_WIDTH / 40  # Offset from side of screen.
 
     def __init__(self):
+        super().__init__()
         self.dev_mode = True
         self.tick = 1
         self.tick_speed = 20
@@ -103,6 +111,9 @@ class Model(GameModel):
     def get_game_events(self):
         return self.events
 
+    def random_events(self):
+        pass
+
     def alien_movement_update(self, x_update, y_update):
         for obj in self.objects[:]:
             self.update_position(obj, x_update, y_update)
@@ -135,7 +146,7 @@ class Model(GameModel):
                           (hitter.x + hitter.width, hitter.y + hitter.height))
         elif hitter in self.bullets:
             point_list = (
-                (hitter[0], hitter[1] + self.bullet_height), (0, 0))  # TODO why we need to add filler parameter?
+                (hitter[0], hitter[1] + self.bullet_height), (0, 0))  # Filler parameter used so
         elif hitter in self.alien_bullets:
             point_list = ((hitter[0], hitter[1]), (0, 0))
         else:
@@ -175,12 +186,16 @@ class Model(GameModel):
                 self.player.is_blown = True
 
     def screen_change(self):
+        '''
         if self.player_lives == 0:
-            pass  # game over screen
+            self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
-            pass  # reset screen with next level, tick speed faster, more bullets from aliens
+            self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
-            pass  # reset same level, player_lives -= 1
+            self.player_lives -= 1
+            self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
+            self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
+        '''
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
@@ -238,16 +253,18 @@ class Model(GameModel):
                 self.alien_ending()
             elif len(self.objects) == 0:
                 self.player.is_active = False
-            else:
-                self.screen_change()
         if self.player.is_blown:
             self.player.img_name = "x-wing_burnt.png"
+        self.screen_change()
         self.player_speed_trunc()
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
         self.bullet_update()
         self.alien_bullet_update()
         self.timekeeper()
+
+    def reset(self):
+        pass
 
     def action(self, key_val: str, action_type: int):
         import view  # avoids circular imports
