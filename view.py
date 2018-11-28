@@ -101,7 +101,6 @@ class SpaceWindow(GameFrame):
             self.draw_header()
             self.draw_main_btns()
         elif self.scene == self.Scene.GAME_OVER:
-            self.draw_game_over_screen()
             self.game_over_lbl = pyglet.text.Label("You Lose Idiot",
                                                    font_name='8Bit Wonder',
                                                    font_size=self.main_width // 30,
@@ -245,7 +244,6 @@ class SpaceWindow(GameFrame):
 
     def draw_header(self):
         complement  = 255 - self.alpha
-        print(self.alpha)
         header_batch = Batch()
         colors = (0, 0, 0, complement,
                   13, 22, 48, complement,
