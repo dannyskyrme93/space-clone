@@ -312,6 +312,9 @@ class Model(GameModel):
                 elif key_val == key.T:
                     self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
+                elif key_val == key.Y:
+                    self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))
+
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
                 self.keys_pressed -= 1
