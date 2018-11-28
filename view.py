@@ -84,9 +84,9 @@ class SpaceWindow(GameFrame):
         star_batch.draw()
 
     def draw_game_screen(self):
-        self.clear()  # remove for dank visuals
-        self.draw_stars()
         if self.scene == self.Scene.PLAYING:
+            self.clear()
+            self.draw_stars()
             ship = self.model.player
             self.draw_lasers()
             if ship.is_active:
@@ -98,6 +98,8 @@ class SpaceWindow(GameFrame):
                 self.fps_display.draw()
             self.tick += 1
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
+            self.clear()
+            self.draw_stars()
             self.draw_header()
             self.draw_main_btns()
         elif self.scene == self.Scene.GAME_OVER:
@@ -131,6 +133,7 @@ class SpaceWindow(GameFrame):
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             print("Event recieved: ", ev.type)
+            self.model.events = []
 
     def set_model(self):
         self.model = Model()
@@ -275,7 +278,6 @@ class SpaceWindow(GameFrame):
             self.alpha = 0
             if not self.model:
                 self.reset()
-            self.model.events = []
             self.model.update(dt)
             self.trigger_events()
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
@@ -287,6 +289,8 @@ class SpaceWindow(GameFrame):
                 else:
                     self.change_scene(self.Scene.PLAYING)
             self.update_stars()
+        elif self.scene == self.Scene.GAME_OVER:
+            self.trigger_events()
 
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
