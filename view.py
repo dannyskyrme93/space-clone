@@ -116,7 +116,7 @@ class SpaceWindow(GameFrame):
                 anchor_x='center', anchor_y='center',
                 color=(255, 255, 255, 255))
             y_add = lrg_txt_size + y_padding
-            self.control_lbl_space = pyglet.text.Label("Space to Exit.",
+            self.control_lbl_space = pyglet.text.Label("R to Exit.",
                                                                             font_name='8Bit Wonder',
                                                                             font_size=small_txt_size,
                                                                             width=self.main_width // 4,
@@ -126,7 +126,7 @@ class SpaceWindow(GameFrame):
                                                                             anchor_x='center', anchor_y='center',
                                                                             color=(255, 255, 255, 255))
             y_add += small_txt_size
-            self.control_lbl_r = pyglet.text.Label("R to retry",
+            self.control_lbl_r = pyglet.text.Label("Space to retry",
                                                                         font_name='8Bit Wonder',
                                                                         font_size=small_txt_size,
                                                                         width=self.main_width // 4,
@@ -155,8 +155,12 @@ class SpaceWindow(GameFrame):
                                          colours, 1, 0.66)
             elif ev.type == GameEvent.EventType.GAME_OVER:
                 self.change_scene(self.Scene.GAME_OVER)
-            elif ev.type == GameEvent.EventType.RESET:
-                self.reset()
+            elif ev.type == GameEvent.EventType.EXIT_MENU:
+                self.exit_to_menu()
+            elif ev.type == GameEvent.EventType.RESET_SCREEN:
+                self.model = Model()
+                self.change_scene(self.Scene.PLAYING)
+
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             print("Event recieved: ", ev.type)
@@ -165,7 +169,7 @@ class SpaceWindow(GameFrame):
     def set_model(self):
         self.model = Model()
 
-    def reset(self):
+    def exit_to_menu(self):
         self.set_model()
         self.pixel_spills = []
         self.change_scene(self.Scene.MAIN_MENU)
