@@ -66,9 +66,10 @@ class Model(GameModel):
 
     def __init__(self):
         super().__init__()
-        self.dev_mode = True
+        self.game_over = False
+        self.timer = 0
         self.tick = 1
-        self.tick_speed = 20
+        self.tick_speed = 40
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
@@ -170,8 +171,7 @@ class Model(GameModel):
         elif self.player.dx > 0:
             self.player.dx = Model.PLAYER_SPEED
 
-    def player_death_check(self, bullet=0):
-        if bullet == 0:
+    def player_death_check(self, bullet=(0, 0)):
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
                     self.player.is_blown = True
@@ -180,17 +180,28 @@ class Model(GameModel):
                     if self.hitbox_check(mob, self.player):
                         self.player.is_blown = True
 
-        else:
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
                 self.player.is_blown = True
 
+    def counter(self, time):
+        if self.timer == 0:
+            self.timer = time + 1
+        if self.timer == 1:
+            return False
+        if self.timer <= time:
+            self.timer -= 1
+
     def screen_change(self):
         if self.player_lives == 0:
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
+            self.game_over = True
+            print("press space to quit to main menu, R to retry")  # TODO add player choice after game over
             self.events.append(GameEvent(GameEvent.EventType.RESET))
+
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
+
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
@@ -250,10 +261,10 @@ class Model(GameModel):
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
                                                                              self.player.y + self.player.height / 2)))
                 self.alien_ending()
-            elif len(self.objects) == 0:
-                self.player.is_active = False
         if self.player.is_blown:
             self.player.img_name = "x-wing_burnt.png"
+            if len(self.objects) == 0:
+                self.player.is_active = False
         self.screen_change()
         self.player_speed_trunc()
         self.player_edge_check()
@@ -266,12 +277,19 @@ class Model(GameModel):
         pass
 
     def action(self, key_val: str, action_type: int):
-        import view  # avoids circular imports
+        import view, frame  # avoids circular imports
         x1_ship = self.player.width / 32
         x2_ship = self.player.width / float(1.04065)
         y_ship = self.player.height / 1.6
 
         if action_type == view.KEY_PRESS:
+            if self.game_over:
+                if key_val == key.SPACE:
+                    self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+
+                elif key_val == key.R:
+                    self.events.append(GameEvent(GameEvent.EventType.RESET))
+
             if key_val == key.LEFT:
                 self.keys_pressed += 1
                 if not self.player.x <= 0 and not self.player.dx < 0:
@@ -293,15 +311,11 @@ class Model(GameModel):
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.e_countdown = self.countdown
 
-            elif key_val == key.Z:
-                self.dev_mode = not self.dev_mode
-                print("dev mode!")
-
-            if self.dev_mode or view.GameFrame.DEV_MODE:
+            if frame.GameFrame.dev_mode:
                 if key_val == key.G:
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
 
-                if key_val == key.R:
+                elif key_val == key.R:
                     self.events.append(GameEvent(GameEvent.EventType.RESET))
 
         if action_type == view.KEY_RELEASE:
@@ -313,6 +327,8 @@ class Model(GameModel):
                 self.keys_pressed -= 1
                 if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
+        print(self.events)
+        self.get_game_events()
 
 
 class Alien(GameObject):
