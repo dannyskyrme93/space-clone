@@ -291,6 +291,7 @@ class Model(GameModel):
                     self.player.dx += Model.PLAYER_SPEED
 
             elif key_val == key.Q and self.q_countdown <= 0:
+                self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE))
                 print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
 
