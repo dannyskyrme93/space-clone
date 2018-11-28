@@ -19,6 +19,7 @@ class SpaceWindow(GameFrame):
         GAME_OVER = 2
         CLOSING = 3
         MAIN_TO_PLAYING = 4
+        NEXT_LEVEL = 5
 
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
@@ -50,6 +51,7 @@ class SpaceWindow(GameFrame):
         self.main_btns[0].func = partial(self.change_scene, self.Scene.MAIN_TO_PLAYING)
 
         self.reset_flame_colours()
+        self.is_counting = False
 
     def get_btn_labels(self):
         return "START_GAME", "OPTIONS", "EXIT"
@@ -82,6 +84,34 @@ class SpaceWindow(GameFrame):
         for i in self.star_pts:
             star_batch.add(4, GL_QUADS, None, ('v2f', i))
         star_batch.draw()
+
+    def draw_main_menu_background(self):
+        self.draw_stars()
+
+    def trigger_events(self):
+        events = self.model.get_game_events()
+        for ev in events:
+            print("Event recieved: ", ev.type)
+            if ev.type == GameEvent.EventType.BLOOD_IMPACT:
+                colour = 4 * PixelSpillBlock.BLOOD_COLOUR
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         [colour], 0.5, 1)
+            elif ev.type == GameEvent.EventType.EXPLOSION:
+                colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         colours, 1, 0.66)
+            elif ev.type == GameEvent.EventType.GAME_OVER:
+                self.change_scene(self.Scene.GAME_OVER)
+            elif ev.type == GameEvent.EventType.EXIT_MENU:
+                self.exit_to_menu()
+            elif ev.type == GameEvent.EventType.RESET_SCREEN:
+                self.model = Model()
+                self.change_scene(self.Scene.PLAYING)
+            elif ev.type == GameEvent.EventType.NEXT_LEVEL:
+                self.change_scene(self.Scene.NEXT_LEVEL)
+            if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
+                self.play_sound(ev.sound)
+            self.model.events = []
 
     def draw_game_screen(self):
         if self.scene == self.Scene.PLAYING:
@@ -138,33 +168,35 @@ class SpaceWindow(GameFrame):
             self.game_over_lbl.draw()
             self.control_lbl_space.draw()
             self.control_lbl_r.draw()
+        elif self.scene == self.Scene.NEXT_LEVEL:
+            self.clear()
+            self.draw_stars()
+            self.draw_header()
+            lrg_txt_size = self.main_width // 30
+            small_txt_size = self.main_width // 50
+            y_padding = small_txt_size
+            origin_y = 0.6 * self.height
+            you_win_lbl = pyglet.text.Label(
+                "You Lose Idiot",
+                font_name='8Bit Wonder',
+                font_size=lrg_txt_size,
+                width=self.main_width // 4, height=self.header_height * 2,
+                x=self.main_width // 2, y=origin_y,
+                anchor_x='center', anchor_y='center',
+                color=(255, 255, 255, 255))
+            y_add = lrg_txt_size + y_padding
 
-    def draw_main_menu_background(self):
-        self.draw_stars()
-
-    def trigger_events(self):
-        events = self.model.get_game_events()
-        for ev in events:
-            if ev.type == GameEvent.EventType.BLOOD_IMPACT:
-                colour = 4 * PixelSpillBlock.BLOOD_COLOUR
-                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         [colour], 0.5, 1)
-            elif ev.type == GameEvent.EventType.EXPLOSION:
-                colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
-                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         colours, 1, 0.66)
-            elif ev.type == GameEvent.EventType.GAME_OVER:
-                self.change_scene(self.Scene.GAME_OVER)
-            elif ev.type == GameEvent.EventType.EXIT_MENU:
-                self.exit_to_menu()
-            elif ev.type == GameEvent.EventType.RESET_SCREEN:
-                self.model = Model()
-                self.change_scene(self.Scene.PLAYING)
-
-            if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
-                self.play_sound(ev.sound)
-            print("Event recieved: ", ev.type)
-            self.model.events = []
+            coutdown_lbl = pyglet.text.Label(str((self.cooldown // (math.ceil(self.COOLDOWN // 3)))+1),
+                                                       font_name='8Bit Wonder',
+                                                       font_size=small_txt_size,
+                                                       width=self.main_width // 4,
+                                                       height=self.header_height * 2,
+                                                       x=self.main_width // 2,
+                                                       y=origin_y - y_add,
+                                                       anchor_x='center', anchor_y='center',
+                                                       color=(255, 255, 255, 255))
+            you_win_lbl.draw()
+            coutdown_lbl.draw()
 
     def set_model(self):
         self.model = Model()
@@ -301,27 +333,30 @@ class SpaceWindow(GameFrame):
         self.head_lbl.draw()
 
     def update(self, dt):
+        if self.cooldown >= 0 and self.is_counting:
+            self.cooldown -= 1
+
         if self.scene == self.Scene.MAIN_MENU:
             self.update_stars()
         elif self.scene == self.Scene.CLOSING:
             self.close()
         elif self.scene == self.Scene.PLAYING:
             self.alpha = 0
-            if not self.model:
-                self.reset()
             self.model.update(dt)
             self.trigger_events()
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
             for btn in self.main_btns:
                 self.alpha = int(255 * (self.cooldown / self.max_cooldown))
                 btn.change_alpha(self.alpha)
-                if self.cooldown >= 0:
-                    self.cooldown -= 1
-                else:
+                if self.cooldown <= 0:
                     self.change_scene(self.Scene.PLAYING)
             self.update_stars()
         elif self.scene == self.Scene.GAME_OVER:
             self.trigger_events()
+        elif self.scene == self.Scene.NEXT_LEVEL:
+            if self.cooldown <= 0:
+                self.model = Model()
+                self.change_scene(self.Scene.PLAYING)
 
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
@@ -333,6 +368,7 @@ class SpaceWindow(GameFrame):
     def change_scene(self, scene):
         if not self.scene or self.scene != scene:
             if scene == self.Scene.PLAYING:
+                self.is_counting = False
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
                 if not GameFrame.dev_mode:
@@ -344,14 +380,21 @@ class SpaceWindow(GameFrame):
                 if not self.model:
                     self.set_model()
             elif scene == self.Scene.MAIN_TO_PLAYING:
+                self.is_counting = True
                 self.set_mouse_visible(False)
                 self.cooldown = self.COOLDOWN
-            elif self.Scene.MAIN_MENU:
+            elif scene == self.Scene.MAIN_MENU:
+                self.is_counting = False
                 self.alpha = 255
                 self.set_mouse_visible(True)
+            elif scene == self.Scene.NEXT_LEVEL:
+                self.is_counting = True
+                self.cooldown = self.COOLDOWN
             print("Screen scene: change: ", self.scene, "->", scene)
             self.scene = scene
 
+    def set_model(self):
+        self.model = Model()
 
 class PixelSpillBlock:
     DEF_COLOUR = (255, 255, 255)
