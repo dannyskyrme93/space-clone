@@ -39,7 +39,7 @@ class GameFrame(Window):
     def __init__(self, dev_mode=False):
         self.model = None
         self.to_clear = False
-        self.dev_mode = dev_mode
+        GameFrame.dev_mode = dev_mode
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
         self.main_menu_song = None
         icon = pyglet.image.load('img/x-wing_icon.png')
@@ -48,7 +48,7 @@ class GameFrame(Window):
         self.scene = None
         self.max_cooldown = 0
         self.cooldown = self.max_cooldown
-        if not self.dev_mode:
+        if not GameFrame.dev_mode:
             self.change_scene(self.Scene.MAIN_MENU)
             self.sound_player = pyglet.media.Player()
             self.set_fullscreen(True)

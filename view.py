@@ -94,7 +94,7 @@ class SpaceWindow(GameFrame):
             self.draw_sprite_objs()
             self.draw_pixel_spills()
             self.draw_header()
-            if self.dev_mode:
+            if GameFrame.dev_mode:
                 self.fps_display.draw()
             self.tick += 1
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
@@ -128,7 +128,7 @@ class SpaceWindow(GameFrame):
                 self.change_scene(self.Scene.GAME_OVER)
             elif ev.type == GameEvent.EventType.RESET:
                 self.reset()
-            if not self.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
+            if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             print("Event recieved: ", ev.type)
 
@@ -300,7 +300,7 @@ class SpaceWindow(GameFrame):
             if scene == self.Scene.PLAYING:
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
-                if not self.dev_mode:
+                if not GameFrame.dev_mode:
                     self.set_mouse_visible(False)
                     if self.main_menu_song is not None:
                         self.main_menu_song.pause()
