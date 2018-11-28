@@ -31,7 +31,6 @@ class SpaceWindow(GameFrame):
         super(SpaceWindow, self).__init__(dev_mode)
         pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
         pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
-        self.alpha = 255
         self.max_cooldown = SpaceWindow.COOLDOWN
         self.cooldown = self.max_cooldown
         self.menu_grad_motion = 0
@@ -245,23 +244,28 @@ class SpaceWindow(GameFrame):
                           ('c3B', colors))
 
     def draw_header(self):
-        colors = (0, 0, 0, 255 - self.alpha,
-                  13, 22, 48, 255 - self.alpha,
-                  13, 22, 48, 255 - self.alpha,
-                  0, 0, 0, 255 - self.alpha)
-        graphics.draw(4, GL_QUADS, ('v2f', [0, self.main_height,
+        complement  = 255 - self.alpha
+        print(self.alpha)
+        header_batch = Batch()
+        colors = (0, 0, 0, complement,
+                  13, 22, 48, complement,
+                  13, 22, 48, complement,
+                  0, 0, 0, complement)
+        header_batch.add(4, GL_QUADS, None, ('v2f', [0, self.main_height,
                                             0, self.main_height + self.header_height,
                                             self.main_width, self.main_height + self.header_height,
-                                            self.main_width, self.main_height]), ('c4b', colors))
-        graphics.draw(2, GL_LINES, ('v2f', [0, self.main_height,
-                                            self.main_width, self.main_height]))
+                                            self.main_width, self.main_height]), ('c4B', colors))
+        header_batch.add(2, GL_LINES, None, ('v2f', [0, self.main_height,
+                                            self.main_width, self.main_height]),
+                      ('c4B', 2 * (255, 255, 255, complement)))
+        header_batch.draw()
         self.head_lbl = pyglet.text.Label("Enemies Remaining:",
                                           font_name='8Bit Wonder',
                                           font_size=self.main_width // 50,
                                           width=self.main_width, height=self.header_height,
                                           x=self.main_width // 40, y=self.main_height + self.header_height,
                                           anchor_x='left', anchor_y='top',
-                                          color=(255, 255, 255, self.alpha))
+                                          color=(255, 255, 255, complement))
         self.head_lbl.draw()
 
     def update(self, dt):
@@ -270,6 +274,7 @@ class SpaceWindow(GameFrame):
         elif self.scene == self.Scene.CLOSING:
             self.close()
         elif self.scene == self.Scene.PLAYING:
+            self.alpha = 0
             if not self.model:
                 self.reset()
             self.model.events = []
@@ -279,7 +284,7 @@ class SpaceWindow(GameFrame):
             for btn in self.main_btns:
                 self.alpha = int(255 * (self.cooldown / self.max_cooldown))
                 btn.change_alpha(self.alpha)
-                if self.cooldown > 0:
+                if self.cooldown >= 0:
                     self.cooldown -= 1
                 else:
                     self.change_scene(self.Scene.PLAYING)
@@ -292,13 +297,11 @@ class SpaceWindow(GameFrame):
         src = pyglet.media.load("audio/" + sound_name)
         src.play()
 
-    def get_start_cooldown(self):
-        return SpaceWindow.COOLDOWN
-
     def change_scene(self, scene):
         if not self.scene or self.scene != scene:
             if scene == self.Scene.PLAYING:
-                self.cooldown = self.get_start_cooldown()
+                self.alpha = 0
+                self.cooldown = self.COOLDOWN
                 if not self.dev_mode:
                     self.set_mouse_visible(False)
                     if self.main_menu_song is not None:
@@ -310,7 +313,8 @@ class SpaceWindow(GameFrame):
             elif scene == self.Scene.MAIN_TO_PLAYING:
                 self.set_mouse_visible(False)
                 self.cooldown = self.COOLDOWN
-            else:
+            elif self.Scene.MAIN_MENU:
+                self.alpha = 255
                 self.set_mouse_visible(True)
             print("Screen scene: change: ", self.scene, "->", scene)
             self.scene = scene
