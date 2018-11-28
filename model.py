@@ -307,6 +307,7 @@ class Model(GameModel):
             if frame.GameFrame.dev_mode:
                 if key_val == key.G:
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+                    self.game_over = True
 
                 elif key_val == key.T:
                     self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
