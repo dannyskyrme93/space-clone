@@ -186,16 +186,15 @@ class Model(GameModel):
                 self.player.is_blown = True
 
     def screen_change(self):
-        '''
         if self.player_lives == 0:
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
+            self.events.append(GameEvent(GameEvent.EventType.RESET))
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
-        '''
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
