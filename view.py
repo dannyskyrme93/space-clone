@@ -103,14 +103,41 @@ class SpaceWindow(GameFrame):
             self.draw_header()
             self.draw_main_btns()
         elif self.scene == self.Scene.GAME_OVER:
-            self.game_over_lbl = pyglet.text.Label("You Lose Idiot",
-                                                   font_name='8Bit Wonder',
-                                                   font_size=self.main_width // 30,
-                                                   width=self.main_width // 4, height=self.header_height * 2,
-                                                   x=self.main_width // 2, y=self.height // 2,
-                                                   anchor_x='center', anchor_y='center',
-                                                   color=(255, 255, 255, 255))
+            lrg_txt_size = self.main_width // 30
+            small_txt_size = self.main_width // 50
+            y_padding = small_txt_size
+            origin_y = 0.6 * self.height
+            self.game_over_lbl = pyglet.text.Label(
+                "You Lose Idiot",
+                font_name='8Bit Wonder',
+                font_size=lrg_txt_size,
+                width=self.main_width // 4, height=self.header_height * 2,
+                x=self.main_width // 2, y=origin_y,
+                anchor_x='center', anchor_y='center',
+                color=(255, 255, 255, 255))
+            y_add = lrg_txt_size + y_padding
+            self.control_lbl_space = pyglet.text.Label("Space to Exit.",
+                                                                            font_name='8Bit Wonder',
+                                                                            font_size=small_txt_size,
+                                                                            width=self.main_width // 4,
+                                                                            height=self.header_height * 2,
+                                                                            x=self.main_width // 2,
+                                                                            y=origin_y - y_add,
+                                                                            anchor_x='center', anchor_y='center',
+                                                                            color=(255, 255, 255, 255))
+            y_add += small_txt_size
+            self.control_lbl_r = pyglet.text.Label("R to retry",
+                                                                        font_name='8Bit Wonder',
+                                                                        font_size=small_txt_size,
+                                                                        width=self.main_width // 4,
+                                                                        height=self.header_height,
+                                                                        x=self.main_width // 2,
+                                                                        y=origin_y - y_add,
+                                                                        anchor_x='center', anchor_y='center',
+                                                                        color=(255, 255, 255, 255))
             self.game_over_lbl.draw()
+            self.control_lbl_space.draw()
+            self.control_lbl_r.draw()
 
     def draw_main_menu_background(self):
         self.draw_stars()
@@ -246,19 +273,19 @@ class SpaceWindow(GameFrame):
                           ('c3B', colors))
 
     def draw_header(self):
-        complement  = 255 - self.alpha
+        complement = 255 - self.alpha
         header_batch = Batch()
         colors = (0, 0, 0, complement,
                   13, 22, 48, complement,
                   13, 22, 48, complement,
                   0, 0, 0, complement)
         header_batch.add(4, GL_QUADS, None, ('v2f', [0, self.main_height,
-                                            0, self.main_height + self.header_height,
-                                            self.main_width, self.main_height + self.header_height,
-                                            self.main_width, self.main_height]), ('c4B', colors))
+                                                     0, self.main_height + self.header_height,
+                                                     self.main_width, self.main_height + self.header_height,
+                                                     self.main_width, self.main_height]), ('c4B', colors))
         header_batch.add(2, GL_LINES, None, ('v2f', [0, self.main_height,
-                                            self.main_width, self.main_height]),
-                      ('c4B', 2 * (255, 255, 255, complement)))
+                                                     self.main_width, self.main_height]),
+                         ('c4B', 2 * (255, 255, 255, complement)))
         header_batch.draw()
         self.head_lbl = pyglet.text.Label("Enemies Remaining:",
                                           font_name='8Bit Wonder',
