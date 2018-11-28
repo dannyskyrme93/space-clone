@@ -308,7 +308,7 @@ class Model(GameModel):
                 if key_val == key.G:
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
 
-                elif key_val == key.R:
+                elif key_val == key.T:
                     self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
         if action_type == view.KEY_RELEASE:
