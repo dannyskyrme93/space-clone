@@ -291,16 +291,16 @@ class Model(GameModel):
                     self.player.dx += Model.PLAYER_SPEED
 
             elif key_val == key.Q and self.q_countdown <= 0:
-                self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE))
                 print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
-
+                    self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                     self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
                     self.q_countdown = self.countdown
 
             elif key_val == key.W and self.e_countdown <= 0:
                 print("Wow! The E has been pressed")
                 if len(self.bullets) < self.bullet_max:
+                    self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                     self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
                     self.e_countdown = self.countdown
 
