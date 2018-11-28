@@ -114,6 +114,7 @@ class SpaceWindow(GameFrame):
             self.model.events = []
 
     def draw_game_screen(self):
+        self.tick += 1
         if self.scene == self.Scene.PLAYING:
             self.clear()
             self.draw_stars()
@@ -126,13 +127,13 @@ class SpaceWindow(GameFrame):
             self.draw_header()
             if GameFrame.dev_mode:
                 self.fps_display.draw()
-            self.tick += 1
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
             self.clear()
             self.draw_stars()
             self.draw_header()
             self.draw_main_btns()
         elif self.scene == self.Scene.GAME_OVER:
+            self.draw_pixel_spills()
             lrg_txt_size = self.main_width // 30
             small_txt_size = self.main_width // 50
             y_padding = small_txt_size
@@ -147,46 +148,6 @@ class SpaceWindow(GameFrame):
                 color=(255, 255, 255, 255))
             y_add = lrg_txt_size + y_padding
             self.control_lbl_space = pyglet.text.Label("R to Exit.",
-                                                                            font_name='8Bit Wonder',
-                                                                            font_size=small_txt_size,
-                                                                            width=self.main_width // 4,
-                                                                            height=self.header_height * 2,
-                                                                            x=self.main_width // 2,
-                                                                            y=origin_y - y_add,
-                                                                            anchor_x='center', anchor_y='center',
-                                                                            color=(255, 255, 255, 255))
-            y_add += small_txt_size
-            self.control_lbl_r = pyglet.text.Label("Space to retry",
-                                                                        font_name='8Bit Wonder',
-                                                                        font_size=small_txt_size,
-                                                                        width=self.main_width // 4,
-                                                                        height=self.header_height,
-                                                                        x=self.main_width // 2,
-                                                                        y=origin_y - y_add,
-                                                                        anchor_x='center', anchor_y='center',
-                                                                        color=(255, 255, 255, 255))
-            self.game_over_lbl.draw()
-            self.control_lbl_space.draw()
-            self.control_lbl_r.draw()
-        elif self.scene == self.Scene.NEXT_LEVEL:
-            self.clear()
-            self.draw_stars()
-            self.draw_header()
-            lrg_txt_size = self.main_width // 30
-            small_txt_size = self.main_width // 50
-            y_padding = small_txt_size
-            origin_y = 0.6 * self.height
-            you_win_lbl = pyglet.text.Label(
-                "You Lose Idiot",
-                font_name='8Bit Wonder',
-                font_size=lrg_txt_size,
-                width=self.main_width // 4, height=self.header_height * 2,
-                x=self.main_width // 2, y=origin_y,
-                anchor_x='center', anchor_y='center',
-                color=(255, 255, 255, 255))
-            y_add = lrg_txt_size + y_padding
-
-            coutdown_lbl = pyglet.text.Label(str((self.cooldown // (math.ceil(self.COOLDOWN // 3)))+1),
                                                        font_name='8Bit Wonder',
                                                        font_size=small_txt_size,
                                                        width=self.main_width // 4,
@@ -195,6 +156,47 @@ class SpaceWindow(GameFrame):
                                                        y=origin_y - y_add,
                                                        anchor_x='center', anchor_y='center',
                                                        color=(255, 255, 255, 255))
+            y_add += small_txt_size
+            self.control_lbl_r = pyglet.text.Label("Space to retry",
+                                                   font_name='8Bit Wonder',
+                                                   font_size=small_txt_size,
+                                                   width=self.main_width // 4,
+                                                   height=self.header_height,
+                                                   x=self.main_width // 2,
+                                                   y=origin_y - y_add,
+                                                   anchor_x='center', anchor_y='center',
+                                                   color=(255, 255, 255, 255))
+            self.game_over_lbl.draw()
+            self.control_lbl_space.draw()
+            self.control_lbl_r.draw()
+        elif self.scene == self.Scene.NEXT_LEVEL:
+            self.clear()
+            self.draw_stars()
+            self.draw_header()
+            self.draw_pixel_spills()
+            lrg_txt_size = self.main_width // 30
+            small_txt_size = self.main_width // 50
+            y_padding = small_txt_size
+            origin_y = 0.6 * self.height
+            you_win_lbl = pyglet.text.Label(
+                "NEXT LEVEL IN",
+                font_name='8Bit Wonder',
+                font_size=lrg_txt_size,
+                width=self.main_width // 4, height=self.header_height * 2,
+                x=self.main_width // 2, y=origin_y,
+                anchor_x='center', anchor_y='center',
+                color=(255, 255, 255, 255))
+            y_add = lrg_txt_size + y_padding
+
+            coutdown_lbl = pyglet.text.Label(str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1),
+                                             font_name='8Bit Wonder',
+                                             font_size=small_txt_size,
+                                             width=self.main_width // 4,
+                                             height=self.header_height * 2,
+                                             x=self.main_width // 2,
+                                             y=origin_y - y_add,
+                                             anchor_x='center', anchor_y='center',
+                                             color=(255, 255, 255, 255))
             you_win_lbl.draw()
             coutdown_lbl.draw()
 
@@ -368,6 +370,7 @@ class SpaceWindow(GameFrame):
     def change_scene(self, scene):
         if not self.scene or self.scene != scene:
             if scene == self.Scene.PLAYING:
+                self.pixel_spills = []
                 self.is_counting = False
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
@@ -395,6 +398,7 @@ class SpaceWindow(GameFrame):
 
     def set_model(self):
         self.model = Model()
+
 
 class PixelSpillBlock:
     DEF_COLOUR = (255, 255, 255)
