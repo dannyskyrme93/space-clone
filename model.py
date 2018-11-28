@@ -27,7 +27,7 @@ class GameEvent:
         PLAYER_DEATH = 2
         EXPLOSION = 3
         GAME_OVER = 4
-        RESET = 5
+        EXIT_MENU = 5
         NEXT_LEVEL = 6
         LIFE_LOST = 7
         ALIEN_1_FIRE = 8
@@ -174,29 +174,20 @@ class Model(GameModel):
     def player_death_check(self, bullet=(0, 0)):
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
-                    self.player.is_blown = True
+                    return True
 
                 elif mob.y <= self.player.y + self.player.height:
                     if self.hitbox_check(mob, self.player):
-                        self.player.is_blown = True
+                        return True
 
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
-                self.player.is_blown = True
-
-    def counter(self, time):
-        if self.timer == 0:
-            self.timer = time + 1
-        if self.timer == 1:
-            return False
-        if self.timer <= time:
-            self.timer -= 1
+                return True
 
     def screen_change(self):
         if self.player_lives == 0:
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
             self.game_over = True
-            print("press space to quit to main menu, R to retry")  # TODO add player choice after game over
 
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
@@ -220,8 +211,8 @@ class Model(GameModel):
             if bullet[1] <= 0:
                 self.alien_bullets.remove(bullet)
 
-            if bullet[1] <= self.player.y + self.player.height:
-                self.player_death_check(bullet)
+            if bullet[1] <= self.player.y + self.player.height and self.player_death_check(bullet):
+                self.player.is_blown = True
 
     def bullet_update(self):
         for bullet in self.bullets:
@@ -251,7 +242,8 @@ class Model(GameModel):
         self.tick += 1
 
     def update(self, dt):
-        self.player_death_check()
+        if self.player_death_check():
+            self.player.is_blown = True
         self.screen_change()
         if self.tick % self.tick_speed == 0:
             self.tick = 0
@@ -287,9 +279,9 @@ class Model(GameModel):
                     self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
                 elif key_val == key.R:
-                    self.events.append(GameEvent(GameEvent.EventType.RESET))
+                    self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
-            if key_val == key.LEFT:
+            elif key_val == key.LEFT:
                 self.keys_pressed += 1
                 if not self.player.x <= 0 and not self.player.dx < 0:
                     self.player.dx -= Model.PLAYER_SPEED
@@ -301,6 +293,7 @@ class Model(GameModel):
             elif key_val == key.Q and self.q_countdown <= 0:
                 print("Wow! The Q has been pressed")
                 if len(self.bullets) < self.bullet_max:
+
                     self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
                     self.q_countdown = self.countdown
 
@@ -315,7 +308,7 @@ class Model(GameModel):
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
 
                 elif key_val == key.R:
-                    self.events.append(GameEvent(GameEvent.EventType.RESET))
+                    self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
