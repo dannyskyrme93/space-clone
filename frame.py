@@ -13,38 +13,31 @@ from functools import partial
 KEY_PRESS, KEY_RELEASE = 0, 1
 
 
-# TODO split into static and dynamic batches in parent class
-
-
 class GameFrame(Window):
     __metaclass__ = ABCMeta
 
-    class ScreenContext(Enum):
+    class Scene(Enum):
         PLAYING = 0
         MAIN_MENU = 1
-        GAME_OVER = 2
-        CLOSING = 3
-
+        CLOSING = 2
 
     class KeyAction(Enum):
         KEY_PRESS, KEY_RELEASE = 0, 1
 
-
-    DEFAULT_MENU = ["START", "PREFERENCES", "QUIT"]
+    MENU = ["START", "PREFERENCES", "QUIT"]
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
     COOLDOWN = 0
 
+    main_scenes = [Scene.PLAYING,
+                   Scene.MAIN_MENU,
+                   Scene.CLOSING]
 
     main_width: int = 1700
     main_height: int = 800
     header_height: int = 50
 
     def __init__(self, dev_mode=False):
-        self.main_contexts = [GameFrame.ScreenContext.PLAYING,
-                              GameFrame.ScreenContext.MAIN_MENU,
-                              GameFrame.ScreenContext.CLOSING]
         self.model = None
-        self.cooldown = 0
         self.to_clear = False
         self.dev_mode = dev_mode
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
@@ -52,8 +45,11 @@ class GameFrame(Window):
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
         self.set_btns()
+        self.scene = None
+        self.max_cooldown = 0
+        self.cooldown = self.max_cooldown
         if not self.dev_mode:
-            self.set_context(GameFrame.ScreenContext.MAIN_MENU)
+            self.change_scene(self.Scene.MAIN_MENU)
             self.sound_player = pyglet.media.Player()
             self.set_fullscreen(True)
             self.main_width = self.width
@@ -64,7 +60,7 @@ class GameFrame(Window):
             self.play_main_menu_music()
         else:
             self.set_model()
-            self.set_context(GameFrame.ScreenContext.PLAYING)
+            self.change_scene(self.Scene.PLAYING)
             self.fps_display = pyglet.clock.ClockDisplay()
             self.set_location(220, 30)
             self.width = self.main_width
@@ -72,72 +68,54 @@ class GameFrame(Window):
         self.set_visible(True)
 
     def on_key_press(self, symbol, modifiers):
-        if self.screen_context != GameFrame.ScreenContext.MAIN_MENU:
+        if self.model:
             self.model.action(symbol, KEY_PRESS)
 
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             self.close()
-        elif self.screen_context != GameFrame.ScreenContext.MAIN_MENU:
+        elif self.scene != self.Scene.MAIN_MENU:
             self.model.action(symbol, KEY_RELEASE)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if button == mouse.LEFT and self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+        if button == mouse.LEFT and self.scene == self.Scene.MAIN_MENU:
             self.menu_mouse_action(x, y)
 
-    def set_context(self, context):
-        if context == GameFrame.ScreenContext.PLAYING:
-            self.cooldown = self.get_start_cooldown()
-            if not self.dev_mode:
-                self.set_mouse_visible(False)
-                if self.main_menu_song is not None:
-                    self.main_menu_song.pause()
-                    self.main_menu_song.delete()
-                    self.main_menu_song = None
-            if not self.model:
-                self.set_model()
-        else:
-            self.set_mouse_visible(True)
-        self.screen_context = context
-
     def on_draw(self):
-        if self.to_clear:
-            self.clear()
-        if self.screen_context == GameFrame.ScreenContext.PLAYING and self.cooldown == 0:
-            if self.model:
-                self.draw_playing_screen()
-        elif self.screen_context == GameFrame.ScreenContext.GAME_OVER:
-            self.draw_game_over_screen()
-        elif self.screen_context == GameFrame.ScreenContext.MAIN_MENU or self.cooldown > 0:
+        if self.scene == self.Scene.MAIN_MENU:
             self.clear()
             self.draw_main_menu_background()
             self.draw_main_btns()
+        else:
+            self.draw_game_screen()
 
     def menu_mouse_action(self, x, y):
-        if self.screen_context == GameFrame.ScreenContext.MAIN_MENU:
+        if self.scene == self.Scene.MAIN_MENU:
             for btn in self.main_btns:
                 if btn.is_on(x, y):
+                    print(btn.lbl)
                     btn.click()
 
     def draw_main_btns(self):
         for btn in self.main_btns:
+            print(btn.color)
             graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
                                                 btn.x - btn.width // 2, btn.y + btn.height // 2,
                                                 btn.x + btn.width // 2, btn.y + btn.height // 2,
                                                 btn.x + btn.width // 2, btn.y - btn.height // 2]],
-                          ['c3B', GameButton.COLOR])
+                          ['c4B', tuple(btn.color)])
             btn_lbl = pyglet.text.Label(btn.lbl,
                                         font_name='8Bit Wonder',
                                         font_size=0.3 * btn.height,
                                         width=btn.width, height=0.5 * btn.height,
                                         x=btn.x, y=btn.y,
                                         anchor_x='center', anchor_y='center',
-                                        color=(255, 255, 255, 255))
+                                        color=(255, 255, 255, btn.get_alpha()))
             btn_lbl.draw()
 
     @abstractmethod
-    def get_start_cooldown(self):
-        return 0
+    def change_scene(self, scene):
+        pass
 
     @abstractmethod
     def reset(self):
@@ -154,12 +132,12 @@ class GameFrame(Window):
         self.main_btns = [
             GameButton(self.get_btn_labels()[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
                        y * self.height * GameFrame.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
-                       partial(self.set_context, self.main_contexts[y]))
-            for y in range(0, len(GameFrame.DEFAULT_MENU))]
+                       partial(self.change_scene, self.main_scenes[y]))
+            for y in range(0, len(GameFrame.MENU))]
 
     @abstractmethod
     def get_btn_labels(self):
-        return GameFrame.DEFAULT_MENU
+        return GameFrame.MENU
 
     @abstractmethod
     def set_model(self):
@@ -184,7 +162,7 @@ class GameFrame(Window):
         pass
 
     @abstractmethod
-    def draw_playing_screen(self):
+    def draw_game_screen(self):
         pass
 
     @abstractmethod
@@ -193,7 +171,7 @@ class GameFrame(Window):
 
 
 class GameButton:
-    COLOR = 4 * [125, 125, 125]
+    DEF_COLOR = 4 * [125, 125, 125, 255]
 
     def __init__(self, lbl: str, x: float, y: float, width: float, height: float, func):
         self.lbl = lbl
@@ -202,6 +180,15 @@ class GameButton:
         self.width = width
         self.height = height
         self.func = func
+        self.color = GameButton.DEF_COLOR
+
+    def change_alpha(self, alpha):
+        alpha = int(alpha)
+        for i in range(3, len(self.color), 4):
+            self.color[i] = alpha
+
+    def get_alpha(self):
+        return self.color[3]
 
     def is_on(self, x, y):
         if self.x - self.width // 2 <= x <= self.x + self.width // 2 \
@@ -212,11 +199,10 @@ class GameButton:
     def click(self):
         self.func()
 
-
-if __name__ == '__main__':
-    print("System arguments:", sys.argv)
-    window = GameFrame(True if len(sys.argv) > 1 and str(sys.argv[1]).lower() == "true" else False)
-    pyglet.clock.set_fps_limit(60)
-    delta = 1.0 / 60
-    pyglet.clock.schedule_interval(window.update, delta)
-    pyglet.app.run()
+# if __name__ == '__main__':
+#     print("System arguments:", sys.argv)
+#     window = GameFrame(True if len(sys.argv) > 1 and str(sys.argv[1]).lower() == "true" else False)
+#     pyglet.clock.set_fps_limit(60)
+#     delta = 1.0 / 60
+#     pyglet.clock.schedule_interval(window.update, delta)
+#     pyglet.app.run()
