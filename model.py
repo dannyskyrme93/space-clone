@@ -197,7 +197,6 @@ class Model(GameModel):
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
             self.game_over = True
             print("press space to quit to main menu, R to retry")  # TODO add player choice after game over
-            self.events.append(GameEvent(GameEvent.EventType.RESET))
 
         elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
@@ -253,6 +252,7 @@ class Model(GameModel):
 
     def update(self, dt):
         self.player_death_check()
+        self.screen_change()
         if self.tick % self.tick_speed == 0:
             self.tick = 0
             if not self.player.is_blown:
@@ -265,7 +265,6 @@ class Model(GameModel):
             self.player.img_name = "x-wing_burnt.png"
             if len(self.objects) == 0:
                 self.player.is_active = False
-        self.screen_change()
         self.player_speed_trunc()
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
@@ -285,7 +284,7 @@ class Model(GameModel):
         if action_type == view.KEY_PRESS:
             if self.game_over:
                 if key_val == key.SPACE:
-                    self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+                    self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
                 elif key_val == key.R:
                     self.events.append(GameEvent(GameEvent.EventType.RESET))
@@ -327,8 +326,6 @@ class Model(GameModel):
                 self.keys_pressed -= 1
                 if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
-        print(self.events)
-        self.get_game_events()
 
 
 class Alien(GameObject):
