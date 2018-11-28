@@ -98,7 +98,6 @@ class GameFrame(Window):
 
     def draw_main_btns(self):
         for btn in self.main_btns:
-            print(btn.color)
             graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
                                                 btn.x - btn.width // 2, btn.y + btn.height // 2,
                                                 btn.x + btn.width // 2, btn.y + btn.height // 2,

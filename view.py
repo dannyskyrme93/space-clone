@@ -13,7 +13,6 @@ KEY_PRESS, KEY_RELEASE = 0, 1
 
 
 class SpaceWindow(GameFrame):
-
     class Scene(Enum):
         PLAYING = 0
         MAIN_MENU = 1
@@ -26,12 +25,13 @@ class SpaceWindow(GameFrame):
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
     STAR_MOVE_SPEED = 3
     STAR_SIZE = 1
-    COOLDOWN = 80
+    COOLDOWN = 150
 
     def __init__(self, dev_mode=False):
         super(SpaceWindow, self).__init__(dev_mode)
         pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
         pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
+        self.alpha = 255
         self.max_cooldown = SpaceWindow.COOLDOWN
         self.cooldown = self.max_cooldown
         self.menu_grad_motion = 0
@@ -85,7 +85,7 @@ class SpaceWindow(GameFrame):
         star_batch.draw()
 
     def draw_game_screen(self):
-        self.clear()    # remove for dank visuals
+        self.clear()  # remove for dank visuals
         self.draw_stars()
         if self.scene == self.Scene.PLAYING:
             ship = self.model.player
@@ -99,6 +99,7 @@ class SpaceWindow(GameFrame):
                 self.fps_display.draw()
             self.tick += 1
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
+            self.draw_header()
             self.draw_main_btns()
         elif self.scene == self.Scene.GAME_OVER:
             self.draw_game_over_screen()
@@ -137,10 +138,9 @@ class SpaceWindow(GameFrame):
         self.model = Model()
 
     def reset(self):
-        self.to_clear = True
         self.set_model()
         self.pixel_spills = []
-        self.change_scene(self.Scene.PLAYING)
+        self.change_scene(self.Scene.MAIN_MENU)
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
@@ -245,11 +245,14 @@ class SpaceWindow(GameFrame):
                           ('c3B', colors))
 
     def draw_header(self):
-        colors = [0, 0, 0, 13, 22, 48, 13, 22, 48, 0, 0, 0]
+        colors = (0, 0, 0, 255 - self.alpha,
+                  13, 22, 48, 255 - self.alpha,
+                  13, 22, 48, 255 - self.alpha,
+                  0, 0, 0, 255 - self.alpha)
         graphics.draw(4, GL_QUADS, ('v2f', [0, self.main_height,
                                             0, self.main_height + self.header_height,
                                             self.main_width, self.main_height + self.header_height,
-                                            self.main_width, self.main_height]), ('c3b', colors))
+                                            self.main_width, self.main_height]), ('c4b', colors))
         graphics.draw(2, GL_LINES, ('v2f', [0, self.main_height,
                                             self.main_width, self.main_height]))
         self.head_lbl = pyglet.text.Label("Enemies Remaining:",
@@ -258,7 +261,7 @@ class SpaceWindow(GameFrame):
                                           width=self.main_width, height=self.header_height,
                                           x=self.main_width // 40, y=self.main_height + self.header_height,
                                           anchor_x='left', anchor_y='top',
-                                          color=(255, 255, 255, 255))
+                                          color=(255, 255, 255, self.alpha))
         self.head_lbl.draw()
 
     def update(self, dt):
@@ -273,13 +276,14 @@ class SpaceWindow(GameFrame):
             self.model.update(dt)
             self.trigger_events()
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
-            self.update_stars()
             for btn in self.main_btns:
-                btn.change_alpha(255 * (self.cooldown / self.max_cooldown))
-            if self.cooldown > 0:
-                self.cooldown -= 1
-            else:
-                self.change_scene(self.Scene.PLAYING)
+                self.alpha = int(255 * (self.cooldown / self.max_cooldown))
+                btn.change_alpha(self.alpha)
+                if self.cooldown > 0:
+                    self.cooldown -= 1
+                else:
+                    self.change_scene(self.Scene.PLAYING)
+            self.update_stars()
 
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
