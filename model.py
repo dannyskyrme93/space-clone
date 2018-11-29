@@ -89,7 +89,6 @@ class Model(GameModel):
         self.objects = []  # list of Game Objects, will automatically draw on screen
         self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                  self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
-        self.player_center = (self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)
         self.player_lives = 3
         print(self.player.__dict__)
 
@@ -118,11 +117,15 @@ class Model(GameModel):
             alien_columns = 0
         self.aliens = alien_number[0] * alien_number[1]
 
+    @property
+    def player_center(self):
+        return self.player.x + self.player.width / 2, self.player.y + self.player.height / 2
+
     def get_game_events(self):
         return self.events
 
     def random_events(self, mob):
-        if randint(0, 44) > 44 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+        if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
             self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
             self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
@@ -212,8 +215,7 @@ class Model(GameModel):
 
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
-            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=(
-                                        self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)))
+            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
@@ -277,8 +279,7 @@ class Model(GameModel):
             if not self.player.is_blown:
                 self.alien_update()
             elif self.aliens > 0:
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (
-                    self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)))
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
                 self.alien_ending()
 
         self.player_speed_trunc()
