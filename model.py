@@ -32,7 +32,10 @@ class GameEvent:
         LIFE_LOST = 7
         ALIEN_1_FIRE = 8
         PLAYER_FIRE = 9
-        RESET_SCREEN = 10
+        PLAYER_DEATH_SOUND = 10
+        RESET_SCREEN = 11
+        SCREEN_EDGE = 12
+        ALIEN_MOVE = 13
 
     def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
@@ -55,6 +58,7 @@ class GameObject:
         self.dy = 0
         self.is_active = True
         self.is_blown = False
+        self.is_double_blown = False
 
 
 class Model(GameModel):
@@ -67,7 +71,6 @@ class Model(GameModel):
     def __init__(self):
         super().__init__()
         self.game_over = False
-        self.timer = 0
         self.tick = 1
         self.tick_speed = 40
         self.ALIEN_MOVE_RIGHT = True
@@ -107,6 +110,7 @@ class Model(GameModel):
 
             alien_y -= self.ALIEN_HEIGHT * 1.3  # Next alien spawn in column.
             alien_rows += 1
+            self.aliens = alien_rows * alien_columns
             alien_columns = 0
 
     def get_game_events(self):
@@ -116,16 +120,19 @@ class Model(GameModel):
         pass
 
     def alien_movement_update(self, x_update, y_update):
-        for obj in self.objects[:]:
-            self.update_position(obj, x_update, y_update)
-            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max and obj.y >= Model.MODEL_HEIGHT / 3:
-                self.alien_bullets.append([obj.x + obj.width / 2, obj.y + obj.height / 2])
+        for mob in self.objects[:]:
+            self.update_position(mob, x_update, y_update)
+            # self.events.append(GameEvent(GameEvent.EventType.ALIEN_MOVE, sound="x.mp3"))  #  Alien move sound
+            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+                self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
+                self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
     def alien_update(self):
         if self.ALIEN_MOVE_RIGHT:
             self.BOX_START += Model.MODEL_WIDTH / 40
             self.BOX_END += Model.MODEL_WIDTH / 40
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
+                # self.events.append(GameEvent(GameEvent.EventType.EDGE_SCREEN, sound="x.mp3"))  # Alien hit screen edge
                 self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
@@ -135,6 +142,7 @@ class Model(GameModel):
             self.BOX_START -= Model.MODEL_WIDTH / 40
             self.BOX_END -= Model.MODEL_WIDTH / 40
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:
+                # self.events.append(GameEvent(GameEvent.EventType.EDGE_SCREEN, sound="x.mp3"))  # Alien hit screen edge
                 self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
                 self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
             else:
@@ -159,9 +167,11 @@ class Model(GameModel):
 
     def player_edge_check(self):
         if self.player.x <= 0:
+            # self.events.append(GameEvent(GameEvent.EventType.SCREEN_EDGE, sound="x.mp3")) player hit screen edge
             if not self.player.dx >= 0:  # Stops infinite dx = 0 at edges
                 self.player.dx = 0
         elif self.player.x + self.player.width >= Model.MODEL_WIDTH:
+            # self.events.append(GameEvent(GameEvent.EventType.SCREEN_EDGE, sound="x.mp3")) player hit screen edge
             if not self.player.dx <= 0:
                 self.player.dx = 0
 
@@ -174,18 +184,22 @@ class Model(GameModel):
     def player_death_check(self, bullet=(0, 0)):
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
-                    return True
+                    self.player.is_double_blown = True
 
                 elif mob.y <= self.player.y + self.player.height:
                     if self.hitbox_check(mob, self.player):
-                        return True
+                        self.player.is_double_blown = True
 
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
-                return True
+                if self.player.is_blown:
+                    self.player._is_double_blown = True
+                if not self.player.is_blown:
+                    self.player.is_blown = True
 
     def screen_change(self):
         if self.player_lives == 0:
+            # self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, sound="x.mp3"))
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
             self.game_over = True
 
@@ -194,14 +208,16 @@ class Model(GameModel):
 
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
+            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, sound="xylo.mp3"))
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
-            if mob.y + mob.height <= 0:
+            if mob.y + mob.height < 0:
                 print(len(self.objects))
                 self.objects.remove(mob)
+                self.aliens -= 1
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
 
     def alien_bullet_update(self):
@@ -211,8 +227,8 @@ class Model(GameModel):
             if bullet[1] <= 0:
                 self.alien_bullets.remove(bullet)
 
-            if bullet[1] <= self.player.y + self.player.height and self.player_death_check(bullet):
-                self.player.is_blown = True
+            if bullet[1] <= self.player.y + self.player.height:
+                self.player_death_check(bullet)
 
     def bullet_update(self):
         for bullet in self.bullets:
@@ -226,6 +242,7 @@ class Model(GameModel):
                     self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT,
                                                  (bullet[0], bullet[1] + self.bullet_height)))
                     self.objects.remove(mob)
+                    self.aliens -= 1
                     self.bullets.remove(bullet)
 
     def update_position(self, piece, dx, dy):
@@ -242,9 +259,13 @@ class Model(GameModel):
         self.tick += 1
 
     def update(self, dt):
-        if self.player_death_check():
-            self.player.is_blown = True
+        self.player_death_check()
+        if self.player.is_blown:
+            self.player.img_name = "x-wing_burnt.png"
+        if self.player.is_double_blown:
+            self.player.is_active = False
         self.screen_change()
+
         if self.tick % self.tick_speed == 0:
             self.tick = 0
             if not self.player.is_blown:
@@ -253,10 +274,7 @@ class Model(GameModel):
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
                                                                              self.player.y + self.player.height / 2)))
                 self.alien_ending()
-        if self.player.is_blown:
-            self.player.img_name = "x-wing_burnt.png"
-            if len(self.objects) == 0:
-                self.player.is_active = False
+
         self.player_speed_trunc()
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
