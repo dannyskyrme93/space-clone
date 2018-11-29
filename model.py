@@ -72,7 +72,7 @@ class Model(GameModel):
         super().__init__()
         self.game_over = False
         self.tick = 1
-        self.tick_speed = 40
+        self.tick_speed = 60
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
@@ -121,16 +121,16 @@ class Model(GameModel):
     def get_game_events(self):
         return self.events
 
-    def random_events(self):
-        pass
+    def random_events(self, mob):
+        if randint(0, 44) > 44 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+            self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
+            self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
     def alien_movement_update(self, x_update, y_update):
         for mob in self.objects[:]:
             self.update_position(mob, x_update, y_update)
             # self.events.append(GameEvent(GameEvent.EventType.ALIEN_MOVE, sound="x.mp3"))  #  Alien move sound
-            if randint(0, 44) >= 44 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
-                self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
-                self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
+            self.random_events(mob)
 
     def alien_update(self):
         if self.ALIEN_MOVE_RIGHT:
@@ -197,7 +197,7 @@ class Model(GameModel):
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
                 if self.player.is_blown:
-                    self.player._is_double_blown = True
+                    self.player.is_double_blown = True
                 if not self.player.is_blown:
                     self.player.is_blown = True
 
@@ -219,6 +219,7 @@ class Model(GameModel):
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
+            self.random_events(mob)
             if mob.y + mob.height < 0:
                 print(self.aliens)
                 self.objects.remove(mob)
@@ -296,7 +297,7 @@ class Model(GameModel):
         else:
             pass
 
-    def action(self, key_val: str, action_type: int):
+    def action(self, key_val: str, action_type: int):  # TODO write out possible bugs, find solution
         import view, frame  # avoids circular imports
         x1_ship = self.player.width / 32
         x2_ship = self.player.width / float(1.04065)
@@ -346,15 +347,12 @@ class Model(GameModel):
 
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
-                print(self.player.dx)
                 self.keys_pressed -= 1
-                if not self.player.x <= 0 or not self.keys_pressed == 1 and abs(self.player.dx) == Model.PLAYER_SPEED:
+                if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 self.keys_pressed -= 1
-                print(self.player.dx)
-                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and abs(self.player.dx) == Model.PLAYER_SPEED:
-                    print(self.player.dx)
+                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
                     self.player.dx -= Model.PLAYER_SPEED
 
 
