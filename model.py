@@ -212,7 +212,8 @@ class Model(GameModel):
 
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
-            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
+            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=(
+                                        self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)))
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
@@ -275,7 +276,8 @@ class Model(GameModel):
             if not self.player.is_blown:
                 self.alien_update()
             elif self.aliens > 0:
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (
+                    self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)))
                 self.alien_ending()
 
         self.player_speed_trunc()
