@@ -81,6 +81,7 @@ class Model(GameModel):
         self.bullet_height = Model.MODEL_HEIGHT / 20
         self.bullet_dy = Model.MODEL_HEIGHT / 100
         self.countdown = 20
+        self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
         self.keys_pressed = 0
@@ -88,9 +89,11 @@ class Model(GameModel):
         self.objects = []  # list of Game Objects, will automatically draw on screen
         self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                                  self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
+        self.player_center = (self.player.x + self.player.width / 2, self.player.y + self.player.height / 2)
         self.player_lives = 3
         print(self.player.__dict__)
 
+        alien_number = [0, 0]
         alien_rows = 0
         alien_columns = 0
         alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
@@ -104,14 +107,16 @@ class Model(GameModel):
 
                 alien_x += self.ALIEN_WIDTH * 1.5  # Next alien spawn in row.
                 alien_columns += 1
+                alien_number[1] += 1
 
                 if alien_columns == 14 and alien_rows == 0:
                     self.BOX_END = self.objects[-1].x + Model.ALIEN_WIDTH  # Dynamic Box end spawn
 
             alien_y -= self.ALIEN_HEIGHT * 1.3  # Next alien spawn in column.
             alien_rows += 1
-            self.aliens = alien_rows * alien_columns
+            alien_number[0] += 1
             alien_columns = 0
+        self.aliens = alien_number[0] * alien_number[1]
 
     def get_game_events(self):
         return self.events
@@ -154,10 +159,9 @@ class Model(GameModel):
                           (hitter.x, hitter.y + hitter.height),
                           (hitter.x + hitter.width, hitter.y + hitter.height))
         elif hitter in self.bullets:
-            point_list = (
-                (hitter[0], hitter[1] + self.bullet_height), (0, 0))  # Filler parameter used so
+            point_list = [(hitter[0], hitter[1] + self.bullet_height)]
         elif hitter in self.alien_bullets:
-            point_list = ((hitter[0], hitter[1]), (0, 0))
+            point_list = [(hitter[0], hitter[1])]
         else:
             return 0
 
@@ -203,19 +207,19 @@ class Model(GameModel):
             self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
             self.game_over = True
 
-        elif self.player.is_active and len(self.objects) == 0:  # Player defeated aliens
+        elif self.player.is_active and self.aliens == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
 
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
-            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, sound="xylo.mp3"))
+            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
             self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
             if mob.y + mob.height < 0:
-                print(len(self.objects))
+                print(self.aliens)
                 self.objects.remove(mob)
                 self.aliens -= 1
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
@@ -270,9 +274,8 @@ class Model(GameModel):
             self.tick = 0
             if not self.player.is_blown:
                 self.alien_update()
-            elif len(self.objects) > 0:
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, (self.player.x + self.player.width / 2,
-                                                                             self.player.y + self.player.height / 2)))
+            elif self.aliens > 0:
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
                 self.alien_ending()
 
         self.player_speed_trunc()
@@ -284,6 +287,12 @@ class Model(GameModel):
 
     def reset(self):
         pass
+
+    def key_check(self):
+        if self.keys_pressed == 1:
+            self.keys_pressed -= 1
+        else:
+            pass
 
     def action(self, key_val: str, action_type: int):
         import view, frame  # avoids circular imports
@@ -335,12 +344,15 @@ class Model(GameModel):
 
         if action_type == view.KEY_RELEASE:
             if key_val == key.LEFT:
+                print(self.player.dx)
                 self.keys_pressed -= 1
-                if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
+                if not self.player.x <= 0 or not self.keys_pressed == 1 and abs(self.player.dx) == Model.PLAYER_SPEED:
                     self.player.dx += Model.PLAYER_SPEED
             elif key_val == key.RIGHT:
                 self.keys_pressed -= 1
-                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
+                print(self.player.dx)
+                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and abs(self.player.dx) == Model.PLAYER_SPEED:
+                    print(self.player.dx)
                     self.player.dx -= Model.PLAYER_SPEED
 
 
