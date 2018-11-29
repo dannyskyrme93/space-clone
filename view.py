@@ -26,7 +26,7 @@ class SpaceWindow(GameFrame):
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
     STAR_MOVE_SPEED = 3
     STAR_SIZE = 1
-    COOLDOWN = 150
+    COOLDOWN = 120
 
     def __init__(self, dev_mode=False):
         super(SpaceWindow, self).__init__(dev_mode)
@@ -35,10 +35,10 @@ class SpaceWindow(GameFrame):
         self.max_cooldown = SpaceWindow.COOLDOWN
         self.cooldown = self.max_cooldown
         self.menu_grad_motion = 0
+        self.large_txt_size = self.main_width // 30
+        self.medium_txt_size = self.main_width // 40
+        self.small_txt_size = self.main_width // 50
         self.set_caption("Space Clone")
-        pyglet.font.add_file('res/8-BIT WONDER.ttf')
-        self.bit_font = pyglet.font.load('8Bit Wonder')
-        self.set_btns()
         self.head_lbl = None
         self.tick = 0
         self.img_base = dict()
@@ -47,14 +47,44 @@ class SpaceWindow(GameFrame):
         self.flame_colours = []
         self.rendered_sprite = []
         self.pixel_spills = []
+        self.falling_parts = []
         self.star_batch = []
         self.main_btns[0].func = partial(self.change_scene, self.Scene.MAIN_TO_PLAYING)
+        self.main_btns[2].func = partial(self.change_scene, self.Scene.CLOSING)
 
         self.reset_flame_colours()
         self.is_counting = False
 
+    def update(self, dt):
+        if self.cooldown >= 0 and self.is_counting:
+            self.cooldown -= 1
+        if self.scene == self.Scene.MAIN_MENU:
+            self.update_stars()
+        elif self.scene == self.Scene.PLAYING:
+            self.alpha = 0
+            self.model.update(dt)
+            self.trigger_events()
+        elif self.scene == self.Scene.MAIN_TO_PLAYING:
+            for btn in self.main_btns:
+                self.alpha = int(255 * (self.cooldown / self.max_cooldown))
+                btn.change_alpha(self.alpha)
+                if self.cooldown <= 0:
+                    self.change_scene(self.Scene.PLAYING)
+            self.update_stars()
+        elif self.scene == self.Scene.GAME_OVER:
+            self.trigger_events()
+        elif self.scene == self.Scene.NEXT_LEVEL:
+            if self.cooldown <= 0:
+                self.model = Model()
+                self.change_scene(self.Scene.PLAYING)
+
     def get_btn_labels(self):
         return "START_GAME", "OPTIONS", "EXIT"
+
+    def set_font(self):
+        pyglet.font.add_file('res/8-BIT WONDER.ttf')
+        self.font_name = '8Bit Wonder'
+        pyglet.font.load(self.font_name)
 
     def generate_stars(self):
         self.star_pts = []
@@ -79,16 +109,40 @@ class SpaceWindow(GameFrame):
                 if is_loop:
                     self.star_pts[i][j] -= self.width
 
-    def draw_stars(self):
-        star_batch = Batch()
-        for i in self.star_pts:
-            star_batch.add(4, GL_QUADS, None, ('v2f', i))
-        star_batch.draw()
-
-    def draw_main_menu_background(self):
-        self.draw_stars()
+    def change_scene(self, scene):
+        if not self.scene or self.scene != scene:
+            if scene == self.Scene.PLAYING:
+                self.pixel_spills = []
+                self.falling_parts = []
+                self.is_counting = False
+                self.alpha = 0
+                self.cooldown = self.COOLDOWN
+                if not GameFrame.dev_mode:
+                    self.set_mouse_visible(False)
+                    if self.main_menu_song is not None:
+                        self.main_menu_song.pause()
+                        self.main_menu_song.delete()
+                        self.main_menu_song = None
+                if not self.model:
+                    self.set_model()
+            elif scene == self.Scene.MAIN_TO_PLAYING:
+                self.is_counting = True
+                self.set_mouse_visible(False)
+                self.cooldown = self.COOLDOWN
+            elif scene == self.Scene.MAIN_MENU:
+                self.is_counting = False
+                self.alpha = 255
+                self.set_mouse_visible(True)
+            elif scene == self.Scene.NEXT_LEVEL:
+                self.is_counting = True
+                self.cooldown = self.COOLDOWN
+            elif scene == self.Scene.CLOSING:
+                sys.exit()
+            print("Screen scene: change: ", self.scene, "->", scene)
+            self.scene = scene
 
     def trigger_events(self):
+
         events = self.model.get_game_events()
         for ev in events:
             print("Event recieved: ", ev.type)
@@ -109,96 +163,12 @@ class SpaceWindow(GameFrame):
                 self.change_scene(self.Scene.PLAYING)
             elif ev.type == GameEvent.EventType.NEXT_LEVEL:
                 self.change_scene(self.Scene.NEXT_LEVEL)
+            elif ev.type == GameEvent.EventType.PLAYER_DEATH:
+                col = 4 * [80, 80, 80]
+                self.trigger_falling_parts(ev.coordinates[0], ev.coordinates[1], col, self.model.player.width)
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             self.model.events = []
-
-    def draw_game_screen(self):
-        self.tick += 1
-        if self.scene == self.Scene.PLAYING:
-            self.clear()
-            self.draw_stars()
-            ship = self.model.player
-            self.draw_lasers()
-            if ship.is_active:
-                self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
-            self.draw_sprite_objs()
-            self.draw_pixel_spills()
-            self.draw_header()
-            if GameFrame.dev_mode:
-                self.fps_display.draw()
-        elif self.scene == self.Scene.MAIN_TO_PLAYING:
-            self.clear()
-            self.draw_stars()
-            self.draw_header()
-            self.draw_main_btns()
-        elif self.scene == self.Scene.GAME_OVER:
-            self.draw_pixel_spills()
-            lrg_txt_size = self.main_width // 30
-            small_txt_size = self.main_width // 50
-            y_padding = small_txt_size
-            origin_y = 0.6 * self.height
-            self.game_over_lbl = pyglet.text.Label(
-                "You Lose Idiot",
-                font_name='8Bit Wonder',
-                font_size=lrg_txt_size,
-                width=self.main_width // 4, height=self.header_height * 2,
-                x=self.main_width // 2, y=origin_y,
-                anchor_x='center', anchor_y='center',
-                color=(255, 255, 255, 255))
-            y_add = lrg_txt_size + y_padding
-            self.control_lbl_space = pyglet.text.Label("R to Exit.",
-                                                       font_name='8Bit Wonder',
-                                                       font_size=small_txt_size,
-                                                       width=self.main_width // 4,
-                                                       height=self.header_height * 2,
-                                                       x=self.main_width // 2,
-                                                       y=origin_y - y_add,
-                                                       anchor_x='center', anchor_y='center',
-                                                       color=(255, 255, 255, 255))
-            y_add += small_txt_size
-            self.control_lbl_r = pyglet.text.Label("Space to retry",
-                                                   font_name='8Bit Wonder',
-                                                   font_size=small_txt_size,
-                                                   width=self.main_width // 4,
-                                                   height=self.header_height,
-                                                   x=self.main_width // 2,
-                                                   y=origin_y - y_add,
-                                                   anchor_x='center', anchor_y='center',
-                                                   color=(255, 255, 255, 255))
-            self.game_over_lbl.draw()
-            self.control_lbl_space.draw()
-            self.control_lbl_r.draw()
-        elif self.scene == self.Scene.NEXT_LEVEL:
-            self.clear()
-            self.draw_stars()
-            self.draw_header()
-            self.draw_pixel_spills()
-            lrg_txt_size = self.main_width // 30
-            small_txt_size = self.main_width // 50
-            y_padding = small_txt_size
-            origin_y = 0.6 * self.height
-            you_win_lbl = pyglet.text.Label(
-                "NEXT LEVEL IN",
-                font_name='8Bit Wonder',
-                font_size=lrg_txt_size,
-                width=self.main_width // 4, height=self.header_height * 2,
-                x=self.main_width // 2, y=origin_y,
-                anchor_x='center', anchor_y='center',
-                color=(255, 255, 255, 255))
-            y_add = lrg_txt_size + y_padding
-
-            coutdown_lbl = pyglet.text.Label(str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1),
-                                             font_name='8Bit Wonder',
-                                             font_size=small_txt_size,
-                                             width=self.main_width // 4,
-                                             height=self.header_height * 2,
-                                             x=self.main_width // 2,
-                                             y=origin_y - y_add,
-                                             anchor_x='center', anchor_y='center',
-                                             color=(255, 255, 255, 255))
-            you_win_lbl.draw()
-            coutdown_lbl.draw()
 
     def set_model(self):
         self.model = Model()
@@ -206,7 +176,13 @@ class SpaceWindow(GameFrame):
     def exit_to_menu(self):
         self.set_model()
         self.pixel_spills = []
+        self.falling_parts = []
         self.change_scene(self.Scene.MAIN_MENU)
+
+    def trigger_falling_parts(self, src_x, src_y, colours=(255, 255, 255, 255), span=10):
+        num_of = 80
+        for x in np.linspace(src_x - span / 2, src_x + span / 2, num_of):
+            self.falling_parts.append(FallingBlock(x, src_y, 30, colours, 10))
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
@@ -225,6 +201,54 @@ class SpaceWindow(GameFrame):
             blue_val_2 = 255 - random.randint(0, variation_blue)
             self.flame_colours.append(tuple([255, 255, 255, 0, 0, blue_val_1, 0, 0, blue_val_2, 255, 255, 255]))
 
+    def draw_game_screen(self):
+        self.tick += 1
+        if self.scene == self.Scene.PLAYING:
+            self.clear()
+            self.draw_stars()
+            ship = self.model.player
+            self.draw_lasers()
+            if ship.is_active:
+                self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
+            self.draw_sprite_objs()
+
+            self.draw_pixel_spills()
+            self.draw_falling_parts()
+
+            self.draw_header()
+            if GameFrame.dev_mode:
+                self.fps_display.draw()
+        elif self.scene == self.Scene.MAIN_TO_PLAYING:
+            self.clear()
+            self.draw_stars()
+            self.draw_header()
+            self.draw_main_btns()
+        elif self.scene == self.Scene.GAME_OVER:
+            self.draw_pixel_spills()
+            self.draw_falling_parts()
+
+            lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
+            self.draw_display_txt(lines, 3 * [self.small_txt_size])
+        elif self.scene == self.Scene.NEXT_LEVEL:
+            self.clear()
+            self.draw_stars()
+            self.draw_header()
+
+            self.draw_pixel_spills()
+            self.draw_falling_parts()
+
+            lines = ["NEXT LEVEL IN", str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1)]
+            self.draw_display_txt(lines, [self.large_txt_size, self.large_txt_size])
+
+    def draw_stars(self):
+        star_batch = Batch()
+        for i in self.star_pts:
+            star_batch.add(4, GL_QUADS, None, ('v2f', i))
+        star_batch.draw()
+
+    def draw_main_menu_background(self):
+        self.draw_stars()
+
     def draw_sprite_objs(self):
         sprite_batch = Batch()
         self.rendered_sprite = []
@@ -236,6 +260,22 @@ class SpaceWindow(GameFrame):
                 self.rendered_sprite.append(sprite)
 
         sprite_batch.draw()
+
+    def draw_display_txt(self, lines, font_sizes):
+        y_padding = self.main_width // 40
+        origin_y = 0.6 * self.height
+        y_add = 0
+        for i, line in enumerate(lines):
+            lbl = pyglet.text.Label(
+                line,
+                font_name='8Bit Wonder',
+                font_size=font_sizes[i],
+                width=self.main_width // 4, height=self.header_height * 2,
+                x=self.main_width // 2, y=origin_y - y_add,
+                anchor_x='center', anchor_y='center',
+                color=(255, 255, 255, 255))
+            y_add += font_sizes[i] + y_padding
+            lbl.draw()
 
     def get_rendered_sprite(self, obj: GameObject, sprite_batch: Batch):
         if obj.img_name not in self.img_base.keys():
@@ -261,6 +301,23 @@ class SpaceWindow(GameFrame):
         px_vertices = []
         colours = []
         for px in self.pixel_spills:
+            num_of += 4
+            px_vertices.extend((px.x, px.y, px.x, px.y + px.size,
+                                px.x + px.size, px.y + px.size, px.x + px.size, px.y))
+            colours.extend(px.colour)
+        pxl_batch.add(num_of, GL_QUADS, None, ('v2f', px_vertices), ('c3B', colours))
+        pxl_batch.draw()
+
+    def draw_falling_parts(self):
+        pxl_batch = Batch()
+        for bl in self.falling_parts:
+            bl.update(self.tick)
+        self.falling_parts[:] = [val for val in self.falling_parts if not val.is_vanished]
+        num_of = 0
+        px_vertices = []
+        colours = []
+        px:FallingBlock
+        for px in self.falling_parts:
             num_of += 4
             px_vertices.extend((px.x, px.y, px.x, px.y + px.size,
                                 px.x + px.size, px.y + px.size, px.x + px.size, px.y))
@@ -334,73 +391,12 @@ class SpaceWindow(GameFrame):
                                           color=(255, 255, 255, complement))
         self.head_lbl.draw()
 
-    def update(self, dt):
-        if self.cooldown >= 0 and self.is_counting:
-            self.cooldown -= 1
-
-        if self.scene == self.Scene.MAIN_MENU:
-            self.update_stars()
-        elif self.scene == self.Scene.CLOSING:
-            self.close()
-        elif self.scene == self.Scene.PLAYING:
-            self.alpha = 0
-            self.model.update(dt)
-            self.trigger_events()
-        elif self.scene == self.Scene.MAIN_TO_PLAYING:
-            for btn in self.main_btns:
-                self.alpha = int(255 * (self.cooldown / self.max_cooldown))
-                btn.change_alpha(self.alpha)
-                if self.cooldown <= 0:
-                    self.change_scene(self.Scene.PLAYING)
-            self.update_stars()
-        elif self.scene == self.Scene.GAME_OVER:
-            self.trigger_events()
-        elif self.scene == self.Scene.NEXT_LEVEL:
-            if self.cooldown <= 0:
-                self.model = Model()
-                self.change_scene(self.Scene.PLAYING)
-
-    def draw_display_txt(self, line):
-        pass
-
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
 
     def play_sound(self, sound_name: str):
         src = pyglet.media.load("audio/" + sound_name)
         src.play()
-
-    def change_scene(self, scene):
-        if not self.scene or self.scene != scene:
-            if scene == self.Scene.PLAYING:
-                self.pixel_spills = []
-                self.is_counting = False
-                self.alpha = 0
-                self.cooldown = self.COOLDOWN
-                if not GameFrame.dev_mode:
-                    self.set_mouse_visible(False)
-                    if self.main_menu_song is not None:
-                        self.main_menu_song.pause()
-                        self.main_menu_song.delete()
-                        self.main_menu_song = None
-                if not self.model:
-                    self.set_model()
-            elif scene == self.Scene.MAIN_TO_PLAYING:
-                self.is_counting = True
-                self.set_mouse_visible(False)
-                self.cooldown = self.COOLDOWN
-            elif scene == self.Scene.MAIN_MENU:
-                self.is_counting = False
-                self.alpha = 255
-                self.set_mouse_visible(True)
-            elif scene == self.Scene.NEXT_LEVEL:
-                self.is_counting = True
-                self.cooldown = self.COOLDOWN
-            print("Screen scene: change: ", self.scene, "->", scene)
-            self.scene = scene
-
-    def set_model(self):
-        self.model = Model()
 
 
 class PixelSpillBlock:
@@ -436,6 +432,38 @@ class PixelSpillBlock:
             self.size = 0
 
 
+class FallingBlock:
+    DEF_COLOUR = (255, 255, 255)
+    BLOOD_COLOUR = (102, 0, 0)
+    FLAME_COLOURS = [(255, 91, 20),
+                     (255, 35, 35),
+                     (255, 162, 85)]
+    MAX_SPEED = 3
+    SIZE_DECAY: float = 0.2
+    TICK_RATE = 2
+    DEF_SIZE = 8
+    GRAVITY_CONST = 1
+
+    def __init__(self, x, y, upward_speed, colour=None, size=20):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.dy = random.random() * upward_speed
+        self.dx = random.randint(-upward_speed // 16, upward_speed // 16)
+        self.is_vanished = False
+        self.colour = (self.DEF_COLOUR if colour is None else colour)
+
+    def update(self, dt):
+        if dt % self.TICK_RATE != 0:
+            return
+        if self.y < 0:
+            self.is_vanished = True
+        self.y += self.dy
+        self.dy -= self.GRAVITY_CONST
+        self.x += self.dx
+        print(self.x, self.y, self.dy)
+
+
 if __name__ == '__main__':
     print("System arguments:", sys.argv)
     window = SpaceWindow(True if len(sys.argv) > 1 and str(sys.argv[1]).lower() == "true" else False)
@@ -443,3 +471,5 @@ if __name__ == '__main__':
     delta = 1.0 / 60
     pyglet.clock.schedule_interval(window.update, delta)
     pyglet.app.run()
+
+

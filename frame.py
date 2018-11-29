@@ -1,5 +1,4 @@
 from pyglet.window import key, Window, mouse
-from abc import ABCMeta, abstractmethod
 from enum import Enum
 
 import math
@@ -14,7 +13,6 @@ KEY_PRESS, KEY_RELEASE = 0, 1
 
 
 class GameFrame(Window):
-    __metaclass__ = ABCMeta
 
     class Scene(Enum):
         PLAYING = 0
@@ -65,7 +63,9 @@ class GameFrame(Window):
             self.set_location(220, 30)
             self.width = self.main_width
             self.height = self.main_height + self.header_height
+        self.set_font()
         self.set_visible(True)
+        self.set_btns()
 
     def on_key_press(self, symbol, modifiers):
         if self.model:
@@ -73,7 +73,7 @@ class GameFrame(Window):
 
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
-            self.close()
+            sys.exit()
         elif self.scene != self.Scene.MAIN_MENU:
             self.model.action(symbol, KEY_RELEASE)
 
@@ -112,35 +112,17 @@ class GameFrame(Window):
                                         color=(255, 255, 255, btn.get_alpha()))
             btn_lbl.draw()
 
-    @abstractmethod
-    def change_scene(self, scene):
-        pass
 
-    @abstractmethod
-    def reset(self):
-        self.model: GameModel = GameModel
 
-    @abstractmethod
-    def draw_main_menu_background(self):
-        pass
-
-    @abstractmethod
     def set_btns(self):
         btn_width, btn_height = self.width * GameFrame.MAIN_BTN_WIDTH_PERCENT, \
                                 self.height * GameFrame.MAIN_BTN_HEIGHT_PERCENT
+        main_lbls = self.get_btn_labels()
         self.main_btns = [
-            GameButton(self.get_btn_labels()[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
+            GameButton(main_lbls[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
                        y * self.height * GameFrame.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
                        partial(self.change_scene, self.main_scenes[y]))
             for y in range(0, len(GameFrame.MENU))]
-
-    @abstractmethod
-    def get_btn_labels(self):
-        return GameFrame.MENU
-
-    @abstractmethod
-    def set_model(self):
-        pass
 
     def to_screen_x(self, mod_x):
         return self.main_width * mod_x // self.model.MODEL_WIDTH
@@ -148,25 +130,41 @@ class GameFrame(Window):
     def to_screen_y(self, mod_y):
         return self.main_height * mod_y // self.model.MODEL_HEIGHT
 
-    @abstractmethod
+    def set_font(self):
+        raise NotImplementedError
+
+    def reset(self):
+        raise NotImplementedError
+
+    def get_btn_labels(self):
+        raise NotImplementedError
+
+    def change_scene(self, scene):
+        raise NotImplementedError
+
+    def draw_main_menu_background(self):
+        raise NotImplementedError
+
+    def get_btn_labels(self):
+        raise NotImplementedError
+
+    def set_model(self):
+        raise NotImplementedError
+
     def play_main_menu_music(self):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def play_sound(self, ev: GameEvent):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def update(self, dt):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
     def draw_game_screen(self):
-        pass
+        raise NotImplementedError
 
-    @abstractmethod
-    def draw_game_over_screen(self):
-        pass
+    def get_font(self):
+        raise NotImplementedError
 
 
 class GameButton:
@@ -198,3 +196,7 @@ class GameButton:
     def click(self):
         self.func()
 
+
+if __name__ == '__main__':
+    g = GameFrame()
+    g.update(1)
