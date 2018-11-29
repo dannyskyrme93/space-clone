@@ -360,6 +360,9 @@ class SpaceWindow(GameFrame):
                 self.model = Model()
                 self.change_scene(self.Scene.PLAYING)
 
+    def draw_display_txt(self, line):
+        pass
+
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
 

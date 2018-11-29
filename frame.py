@@ -198,10 +198,3 @@ class GameButton:
     def click(self):
         self.func()
 
-# if __name__ == '__main__':
-#     print("System arguments:", sys.argv)
-#     window = GameFrame(True if len(sys.argv) > 1 and str(sys.argv[1]).lower() == "true" else False)
-#     pyglet.clock.set_fps_limit(60)
-#     delta = 1.0 / 60
-#     pyglet.clock.schedule_interval(window.update, delta)
-#     pyglet.app.run()
