@@ -165,7 +165,8 @@ class SpaceWindow(GameFrame):
                 self.change_scene(self.Scene.NEXT_LEVEL)
             elif ev.type == GameEvent.EventType.PLAYER_DEATH:
                 col = 4 * [80, 80, 80]
-                self.trigger_falling_parts(ev.coordinates[0], ev.coordinates[1], col, self.model.player.width)
+                self.trigger_falling_parts(self.to_screen_x(ev.coordinates[0]),
+                                           self.to_screen_y(ev.coordinates[1]), col, self.model.player.width)
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             self.model.events = []
@@ -203,7 +204,7 @@ class SpaceWindow(GameFrame):
 
     def draw_game_screen(self):
         self.tick += 1
-        if self.scene == self.Scene.PLAYING:
+        if self.scene in (self.Scene.PLAYING, self.Scene.GAME_OVER):
             self.clear()
             self.draw_stars()
             ship = self.model.player
@@ -216,6 +217,9 @@ class SpaceWindow(GameFrame):
             self.draw_falling_parts()
 
             self.draw_header()
+            if self.scene == self.Scene.GAME_OVER:
+                lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
+                self.draw_display_txt(lines, 3 * [self.small_txt_size])
             if GameFrame.dev_mode:
                 self.fps_display.draw()
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
@@ -223,12 +227,6 @@ class SpaceWindow(GameFrame):
             self.draw_stars()
             self.draw_header()
             self.draw_main_btns()
-        elif self.scene == self.Scene.GAME_OVER:
-            self.draw_pixel_spills()
-            self.draw_falling_parts()
-
-            lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
-            self.draw_display_txt(lines, 3 * [self.small_txt_size])
         elif self.scene == self.Scene.NEXT_LEVEL:
             self.clear()
             self.draw_stars()
@@ -316,7 +314,7 @@ class SpaceWindow(GameFrame):
         num_of = 0
         px_vertices = []
         colours = []
-        px:FallingBlock
+        px: FallingBlock
         for px in self.falling_parts:
             num_of += 4
             px_vertices.extend((px.x, px.y, px.x, px.y + px.size,
@@ -471,5 +469,3 @@ if __name__ == '__main__':
     delta = 1.0 / 60
     pyglet.clock.schedule_interval(window.update, delta)
     pyglet.app.run()
-
-
