@@ -215,9 +215,11 @@ class Model(GameModel):
 
         elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
             self.player_lives -= 1
+            print(self.player_center)
             self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
             self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
-            self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
+            self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+            self.game_over = True
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
