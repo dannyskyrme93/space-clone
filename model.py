@@ -73,6 +73,7 @@ class Model(GameModel):
         self.game_over = False
         self.tick = 1
         self.tick_speed = 60
+        self.time = None
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
@@ -204,22 +205,28 @@ class Model(GameModel):
                 if not self.player.is_blown:
                     self.player.is_blown = True
 
-    def screen_change(self):
-        if self.player_lives == 0:
+    def screen_change(self, dt):
+        # if self.player_lives == 0:
             # self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, sound="x.mp3"))
-            self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
-            self.game_over = True
+            # self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
+            # self.game_over = True
+            # pass
+
+        if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player
+            self.player_lives -= 1
+            self.events.append(
+                GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
+            if self.real_timer(dt, 5):
+                if self.tick % self.tick_speed == 0:
+                    self.alien_ending()
+            else:
+                self.player.is_active = False
+                self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+                self.game_over = True
+                self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
         elif self.player.is_active and self.aliens == 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
-
-        elif not self.player.is_active:  # Aliens reach bottom of screen or Alien kill player
-            self.player_lives -= 1
-            print(self.player_center)
-            self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
-            self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
-            self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
-            self.game_over = True
 
     def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
@@ -268,13 +275,25 @@ class Model(GameModel):
             self.e_countdown -= 1
         self.tick += 1
 
+    def real_timer(self, dt, time):
+        if self.time is None:
+            self.time = time
+
+        if self.time <= 0:
+            print("Time's up")
+            self.time = None
+            return False
+        else:
+            print(self.time, dt)
+            self.time -= dt
+            return True
+
     def update(self, dt):
         self.player_death_check()
+        self.screen_change(dt)
+
         if self.player.is_blown:
             self.player.img_name = "x-wing_burnt.png"
-        if self.player.is_double_blown:
-            self.player.is_active = False
-        self.screen_change()
 
         if self.tick % self.tick_speed == 0:
             self.tick = 0
