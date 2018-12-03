@@ -183,7 +183,8 @@ class SpaceWindow(GameFrame):
     def trigger_falling_parts(self, src_x, src_y, colours=(255, 255, 255, 255), span=10):
         num_of = 80
         for x in np.linspace(src_x - span / 2, src_x + span / 2, num_of):
-            self.falling_parts.append(FallingBlock(x, src_y, 30, colours, 10))
+            offset = random.randint(-10, 10)
+            self.falling_parts.append(FallingBlock(x + offset, src_y, 30, colours, 10))
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
@@ -263,9 +264,11 @@ class SpaceWindow(GameFrame):
         y_padding = self.main_width // 40
         origin_y = 0.6 * self.height
         y_add = 0
+        txt_batch =  Batch()
         for i, line in enumerate(lines):
             lbl = pyglet.text.Label(
                 line,
+                batch=txt_batch,
                 font_name='8Bit Wonder',
                 font_size=font_sizes[i],
                 width=self.main_width // 4, height=self.header_height * 2,
@@ -273,7 +276,7 @@ class SpaceWindow(GameFrame):
                 anchor_x='center', anchor_y='center',
                 color=(255, 255, 255, 255))
             y_add += font_sizes[i] + y_padding
-            lbl.draw()
+        txt_batch.draw()
 
     def get_rendered_sprite(self, obj: GameObject, sprite_batch: Batch):
         if obj.img_name not in self.img_base.keys():
@@ -324,11 +327,11 @@ class SpaceWindow(GameFrame):
         pxl_batch.draw()
 
     def draw_flame(self, x, y, width):
-        flame_height = (self.main_height + self.main_width) // 75
-        rocket_width = width // 8
-        flame_width_reduct = rocket_width // 8
-        offset = 7.5 * width // 32
-        padding = (width * 14 // 32)
+        flame_height = (self.main_height + self.main_width) // 90
+        rocket_width = 8 * width // 64
+        flame_width_reduct = 0
+        offset = 15 * width // 64
+        padding = 29 * width // 65
 
         if random.random() < 0.2:
             self.reset_flame_colours()
@@ -447,7 +450,7 @@ class FallingBlock:
         self.y = y
         self.size = size
         self.dy = random.random() * upward_speed
-        self.dx = random.randint(-upward_speed // 16, upward_speed // 16)
+        self.dx = random.randint(-upward_speed // 8, upward_speed // 8)
         self.is_vanished = False
         self.colour = (self.DEF_COLOUR if colour is None else colour)
 
@@ -459,7 +462,6 @@ class FallingBlock:
         self.y += self.dy
         self.dy -= self.GRAVITY_CONST
         self.x += self.dx
-        print(self.x, self.y, self.dy)
 
 
 if __name__ == '__main__':
