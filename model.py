@@ -36,6 +36,7 @@ class GameEvent:
         RESET_SCREEN = 11
         SCREEN_EDGE = 12
         ALIEN_MOVE = 13
+        PLAYER_IMG_CHANGE = 14
 
     def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
@@ -72,14 +73,14 @@ class Model(GameModel):
         super().__init__()
         self.game_over = False
         self.tick = 1
-        self.tick_speed = 60
+        self.tick_speed = 30
         self.time = None
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
         self.bullet_max = 4
         self.alien_bullet_max = 100
-        self.bullet_height = Model.MODEL_HEIGHT / 20
+        self.bullet_height = Model.MODEL_HEIGHT / 19
         self.bullet_dy = Model.MODEL_HEIGHT / 100
         self.countdown = 20
         self.input = True
@@ -93,7 +94,7 @@ class Model(GameModel):
         self.player_lives = 3
         print(self.player.__dict__)
 
-        alien_number = [0, 0]
+        alien_number = 0
         alien_rows = 0
         alien_columns = 0
         alien_y = self.MODEL_HEIGHT - self.ALIEN_Y_OFF - self.ALIEN_HEIGHT  # Alien spawn y starting point.
@@ -107,16 +108,16 @@ class Model(GameModel):
 
                 alien_x += self.ALIEN_WIDTH * 1.5  # Next alien spawn in row.
                 alien_columns += 1
-                alien_number[1] += 1
+                alien_number += 1
 
                 if alien_columns == 14 and alien_rows == 0:
                     self.BOX_END = self.objects[-1].x + Model.ALIEN_WIDTH  # Dynamic Box end spawn
 
             alien_y -= self.ALIEN_HEIGHT * 1.3  # Next alien spawn in column.
             alien_rows += 1
-            alien_number[0] += 1
             alien_columns = 0
-        self.aliens = alien_number[0] * alien_number[1]
+
+        self.aliens = alien_number
 
     @property
     def player_center(self):
@@ -192,47 +193,53 @@ class Model(GameModel):
     def player_death_check(self, bullet=(0, 0)):
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
-                    self.player.is_double_blown = True
+                    self.player.is_double_blown, self.player.is_blown = True, True
+                    self.events.append(
+                        GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
 
                 elif mob.y <= self.player.y + self.player.height:
                     if self.hitbox_check(mob, self.player):
-                        self.player.is_double_blown = True
+                        self.player.is_double_blown, self.player.is_blown = True, True
+                        self.events.append(
+                            GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
 
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
-                if self.player.is_blown:
+                if self.player.is_blown:  # If player hit once
                     self.player.is_double_blown = True
-                if not self.player.is_blown:
+                    self.events.append(
+                        GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
+                if not self.player.is_blown:  # Player hit nonce
                     self.player.is_blown = True
+                    self.events.append(GameEvent(
+                        GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing damaged.png"]))
 
     def screen_change(self, dt):
-        # if self.player_lives == 0:
-            # self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, sound="x.mp3"))
-            # self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))  # game over screen
-            # self.game_over = True
-            # pass
-
         if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player
-            self.player_lives -= 1
-            self.events.append(
-                GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))  # reset same level, player_lives -= 1
-            if self.real_timer(dt, 5):
-                if self.tick % self.tick_speed == 0:
+            if self.real_timer(dt, 3):
+                if self.tick % 10 == 0:
+                    self.key_neutraliser()
                     self.alien_ending()
             else:
                 self.player.is_active = False
-                self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
-                self.game_over = True
+                self.player_lives -= 1
+                self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))
                 self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
-        elif self.player.is_active and self.aliens == 0:  # Player defeated aliens
+                if self.player_lives == 2:  # TODO temp while player lives not implemented
+                    self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+                    self.game_over = True
+                else:
+                    self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
+
+        elif self.player.is_active and self.aliens <= 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
 
-    def alien_ending(self):  # TODO work out why aliens aren't leaving screen smoothly
+    def alien_ending(self, random=0):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
-            self.random_events(mob)
+            if random:
+                self.random_events(mob)
             if mob.y + mob.height < 0:
-                print(self.aliens)
                 self.objects.remove(mob)
                 self.aliens -= 1
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
@@ -284,7 +291,6 @@ class Model(GameModel):
             self.time = None
             return False
         else:
-            print(self.time, dt)
             self.time -= dt
             return True
 
@@ -292,16 +298,13 @@ class Model(GameModel):
         self.player_death_check()
         self.screen_change(dt)
 
-        if self.player.is_blown:
-            self.player.img_name = "x-wing_burnt.png"
-
         if self.tick % self.tick_speed == 0:
             self.tick = 0
             if not self.player.is_blown:
                 self.alien_update()
             elif self.aliens > 0:
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
-                self.alien_ending()
+                self.alien_ending(random=True)
 
         self.player_speed_trunc()
         self.player_edge_check()
@@ -313,9 +316,11 @@ class Model(GameModel):
     def reset(self):
         pass
 
-    def key_check(self):
-        if self.keys_pressed == 1:
-            self.keys_pressed -= 1
+    def key_neutraliser(self):
+        self.input = False
+        if self.keys_pressed > 0:
+            self.keys_pressed = 0
+            self.player.dx = 0
         else:
             pass
 
@@ -333,49 +338,51 @@ class Model(GameModel):
                 elif key_val == key.R:
                     self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
-            elif key_val == key.LEFT:
-                self.keys_pressed += 1
-                if not self.player.x <= 0 and not self.player.dx < 0:
-                    self.player.dx -= Model.PLAYER_SPEED
-            elif key_val == key.RIGHT:
-                self.keys_pressed += 1
-                if not self.player.x + self.player.width >= Model.MODEL_WIDTH and not self.player.dx > 0:
-                    self.player.dx += Model.PLAYER_SPEED
+            if self.input:
+                if key_val == key.LEFT:
+                    self.keys_pressed += 1
+                    if not self.player.x <= 0 and not self.player.dx < 0:
+                        self.player.dx -= Model.PLAYER_SPEED
+                elif key_val == key.RIGHT:
+                    self.keys_pressed += 1
+                    if not self.player.x + self.player.width >= Model.MODEL_WIDTH and not self.player.dx > 0:
+                        self.player.dx += Model.PLAYER_SPEED
 
-            elif key_val == key.Q and self.q_countdown <= 0:
-                print("Wow! The Q has been pressed")
-                if len(self.bullets) < self.bullet_max:
-                    self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
-                    self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
-                    self.q_countdown = self.countdown
+                elif key_val == key.Q and self.q_countdown <= 0:
+                    print("Wow! The Q has been pressed")
+                    if len(self.bullets) < self.bullet_max:
+                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
+                        self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
+                        self.q_countdown = self.countdown
 
-            elif key_val == key.W and self.e_countdown <= 0:
-                print("Wow! The E has been pressed")
-                if len(self.bullets) < self.bullet_max:
-                    self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
-                    self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
-                    self.e_countdown = self.countdown
+                elif key_val == key.W and self.e_countdown <= 0:
+                    print("Wow! The E has been pressed")
+                    if len(self.bullets) < self.bullet_max:
+                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
+                        self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
+                        self.e_countdown = self.countdown
 
-            if frame.GameFrame.dev_mode:
-                if key_val == key.G:
-                    self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
-                    self.game_over = True
+                if frame.GameFrame.dev_mode:
+                    if key_val == key.G:
+                        self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
+                        self.game_over = True
 
-                elif key_val == key.T:
-                    self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
+                    elif key_val == key.T:
+                        self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
-                elif key_val == key.Y:
-                    self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))
+                    elif key_val == key.Y:
+                        self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))
 
         if action_type == view.KEY_RELEASE:
-            if key_val == key.LEFT:
-                self.keys_pressed -= 1
-                if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
-                    self.player.dx += Model.PLAYER_SPEED
-            elif key_val == key.RIGHT:
-                self.keys_pressed -= 1
-                if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
-                    self.player.dx -= Model.PLAYER_SPEED
+            if self.input:
+                if key_val == key.LEFT:
+                    self.keys_pressed -= 1
+                    if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
+                        self.player.dx += Model.PLAYER_SPEED
+                elif key_val == key.RIGHT:
+                    self.keys_pressed -= 1
+                    if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
+                        self.player.dx -= Model.PLAYER_SPEED
 
 
 class Alien(GameObject):
