@@ -194,28 +194,24 @@ class Model(GameModel):
             for mob in self.objects[:]:
                 if mob.y <= 0:  # Monsters off bottom edge of screen
                     self.player.is_double_blown, self.player.is_blown = True, True
-                    self.events.append(
-                        GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
+                    self.player.img_name = "x-wing very damaged.png"
 
                 elif mob.y <= self.player.y + self.player.height:
                     if self.hitbox_check(mob, self.player):
                         self.player.is_double_blown, self.player.is_blown = True, True
-                        self.events.append(
-                            GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
+                        self.player.img_name = "x-wing very damaged.png"
 
             if self.hitbox_check(bullet, self.player):
                 self.alien_bullets.remove(bullet)
                 if self.player.is_blown:  # If player hit once
                     self.player.is_double_blown = True
-                    self.events.append(
-                        GameEvent(GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing very damaged.png"]))
+                    self.player.img_name = "x-wing very damaged.png"
                 if not self.player.is_blown:  # Player hit nonce
                     self.player.is_blown = True
-                    self.events.append(GameEvent(
-                        GameEvent.EventType.PLAYER_IMG_CHANGE, args=["x-wing damaged.png"]))
+                    self.player.img_name = "x-wing damaged.png"
 
     def screen_change(self, dt):
-        if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player
+        if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player or aliens shoot player
             if self.real_timer(dt, 3):
                 if self.tick % 10 == 0:
                     self.key_neutraliser()
