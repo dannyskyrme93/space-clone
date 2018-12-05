@@ -383,7 +383,7 @@ class SpaceWindow(GameFrame):
                                                      self.main_width, self.main_height]),
                          ('c4B', 2 * (255, 255, 255, complement)))
         header_batch.draw()
-        self.head_lbl = pyglet.text.Label("Enemies Remaining:",
+        self.head_lbl = pyglet.text.Label("Enemies Remaining: " + ("" if not self.model else str(self.model.aliens)),
                                           font_name='8Bit Wonder',
                                           font_size=self.main_width // 50,
                                           width=self.main_width, height=self.header_height,
