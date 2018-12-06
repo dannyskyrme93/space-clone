@@ -13,11 +13,11 @@ KEY_PRESS, KEY_RELEASE = 0, 1
 
 
 class GameFrame(Window):
-
     class Scene(Enum):
         PLAYING = 0
         MAIN_MENU = 1
         CLOSING = 2
+        MAIN_MENU_WITH_OPTIONS = 3
 
     class KeyAction(Enum):
         KEY_PRESS, KEY_RELEASE = 0, 1
@@ -25,7 +25,7 @@ class GameFrame(Window):
     MENU = ["START", "PREFERENCES", "QUIT"]
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
     COOLDOWN = 0
-
+    OPT_ORIGIN_X_PERCENT, OPT_ORIGIN_Y_PERCENT = 0.25, 0.25
     main_scenes = [Scene.PLAYING,
                    Scene.MAIN_MENU,
                    Scene.CLOSING]
@@ -74,24 +74,32 @@ class GameFrame(Window):
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             sys.exit()
-        elif self.scene != self.Scene.MAIN_MENU:
+        elif self.scene not in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.model.action(symbol, KEY_RELEASE)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if button == mouse.LEFT and self.scene == self.Scene.MAIN_MENU:
+        if button == mouse.LEFT and self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.menu_mouse_action(x, y)
 
     def on_draw(self):
-        if self.scene == self.Scene.MAIN_MENU:
+        if self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.clear()
             self.draw_main_menu_background()
             self.draw_main_btns()
+            if self.scene == self.Scene.MAIN_MENU_WITH_OPTIONS:
+                self.draw_options_panel()
         else:
             self.draw_game_screen()
 
     def menu_mouse_action(self, x, y):
         if self.scene == self.Scene.MAIN_MENU:
             for btn in self.main_btns:
+                if btn.is_on(x, y):
+                    print(btn.lbl)
+                    btn.click()
+        elif self.scene == self.Scene.MAIN_MENU_WITH_OPTIONS:
+            # TODO this is temp
+            for btn in self.opt_btns:
                 if btn.is_on(x, y):
                     print(btn.lbl)
                     btn.click()
@@ -112,7 +120,30 @@ class GameFrame(Window):
                                         color=(255, 255, 255, btn.get_alpha()))
             btn_lbl.draw()
 
-
+    def draw_options_panel(self):
+        origin_x = self.OPT_ORIGIN_X_PERCENT * self.width
+        origin_y = self.OPT_ORIGIN_Y_PERCENT * self.height
+        panel_width = 2 * (0.5 - self.OPT_ORIGIN_X_PERCENT) * self.width
+        panel_height = 2 * (0.5 - self.OPT_ORIGIN_Y_PERCENT) * self.height
+        graphics.draw(4, GL_QUADS, ['v2f', [origin_x, origin_y,
+                                            origin_x, origin_y + panel_height,
+                                            origin_x + panel_width, origin_y + panel_height,
+                                            origin_x + panel_width, origin_y]],
+                      ['c4B', tuple(GameButton.DEF_COLOR)])
+        for btn in self.opt_btns:
+            graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
+                                                btn.x - btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y - btn.height // 2]],
+                          ['c4B', tuple(btn.color)])
+            btn_lbl = pyglet.text.Label(btn.lbl,
+                                        font_name='8Bit Wonder',
+                                        font_size=0.3 * btn.height,
+                                        width=btn.width, height=0.5 * btn.height,
+                                        x=btn.x, y=btn.y,
+                                        anchor_x='center', anchor_y='center',
+                                        color=(255, 255, 255, btn.get_alpha()))
+            btn_lbl.draw()
 
     def set_btns(self):
         btn_width, btn_height = self.width * GameFrame.MAIN_BTN_WIDTH_PERCENT, \
@@ -123,6 +154,43 @@ class GameFrame(Window):
                        y * self.height * GameFrame.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
                        partial(self.change_scene, self.main_scenes[y]))
             for y in range(0, len(GameFrame.MENU))]
+
+        self.opt_btns = []
+        opt_contents = self.get_options()
+        darker = [c - 40 for c in GameButton.DEF_COLOR]
+
+        origin_x = (self.OPT_ORIGIN_X_PERCENT + 0.025) * self.width
+        origin_y = (self.OPT_ORIGIN_Y_PERCENT + 0.025) * self.height
+        panel_width = 2 * (0.5 - self.OPT_ORIGIN_X_PERCENT) * self.width
+        panel_height = 2 * (0.5 - self.OPT_ORIGIN_Y_PERCENT) * self.height
+
+        opt_btn_width = btn_width // 2
+        opt_btn_height = btn_height // 2
+        padding_x = opt_btn_width // 4
+        padding_y = opt_btn_height // 4
+        for i, k in enumerate(opt_contents):
+            opt = k
+            choices = opt_contents[k]
+            print(i, opt, choices)
+            y = 0.9 * (origin_y + panel_height) - i * (padding_y + btn_height)
+            btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height,
+                             partial(print, opt))
+            btn.color = darker
+            self.opt_btns.append(btn)
+            for j, choice in enumerate(opt_contents[k]):
+                btn = GameButton(choice, origin_x + opt_btn_width // 2 + (j + 1) * (opt_btn_width + padding_y),
+                                 y, opt_btn_width,
+                                 opt_btn_height,
+                                 partial(print, opt))
+                btn.color = darker
+                self.opt_btns.append(btn)
+        close_size = opt_btn_height // 2
+        options_close_btn = GameButton("", origin_x + panel_width - 2.5 * close_size,
+                                       origin_y + panel_height - 1.75 * close_size,
+                                       close_size, close_size, partial(self.change_scene,
+                                                                       self.Scene.MAIN_MENU))
+        options_close_btn.color = 4 * (179, 30, 60, 255)
+        self.opt_btns.append(options_close_btn)
 
     def to_screen_x(self, mod_x):
         return self.main_width * mod_x // self.model.MODEL_WIDTH
@@ -144,6 +212,9 @@ class GameFrame(Window):
 
     def draw_main_menu_background(self):
         raise NotImplementedError
+
+    def get_options(self):
+        return {"Choice 1": ["Something", "Some"], "Choice 2": {"Something2", "Yeh"}}
 
     def get_btn_labels(self):
         raise NotImplementedError
@@ -196,7 +267,6 @@ class GameButton:
     def click(self):
         self.func()
 
-
-if __name__ == '__main__':
-    g = GameFrame()
-    g.update(1)
+# if __name__ == '__main__':
+#     g = GameFrame()
+#     g.update(1)

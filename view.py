@@ -20,6 +20,7 @@ class SpaceWindow(GameFrame):
         CLOSING = 3
         MAIN_TO_PLAYING = 4
         NEXT_LEVEL = 5
+        MAIN_MENU_WITH_OPTIONS = 6
 
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
@@ -50,6 +51,7 @@ class SpaceWindow(GameFrame):
         self.falling_parts = []
         self.star_batch = []
         self.main_btns[0].func = partial(self.change_scene, self.Scene.MAIN_TO_PLAYING)
+        self.main_btns[1].func = partial(self.change_scene, self.Scene.MAIN_MENU_WITH_OPTIONS)
         self.main_btns[2].func = partial(self.change_scene, self.Scene.CLOSING)
 
         self.reset_flame_colours()
@@ -58,7 +60,7 @@ class SpaceWindow(GameFrame):
     def update(self, dt):
         if self.cooldown >= 0 and self.is_counting:
             self.cooldown -= 1
-        if self.scene == self.Scene.MAIN_MENU:
+        if self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.update_stars()
         elif self.scene == self.Scene.PLAYING:
             self.alpha = 0
@@ -129,7 +131,7 @@ class SpaceWindow(GameFrame):
                 self.is_counting = True
                 self.set_mouse_visible(False)
                 self.cooldown = self.COOLDOWN
-            elif scene == self.Scene.MAIN_MENU:
+            elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
                 self.is_counting = False
                 self.alpha = 255
                 self.set_mouse_visible(True)
@@ -208,10 +210,7 @@ class SpaceWindow(GameFrame):
         if self.scene in (self.Scene.PLAYING, self.Scene.GAME_OVER):
             self.clear()
             self.draw_stars()
-            ship = self.model.player
             self.draw_lasers()
-            if ship.is_active:
-                self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
             self.draw_sprite_objs()
 
             self.draw_pixel_spills()
@@ -219,7 +218,7 @@ class SpaceWindow(GameFrame):
 
             self.draw_header()
             if self.scene == self.Scene.GAME_OVER:
-                lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
+                lines = ["FpushYou Lose Idiot", "R to Exit.", "Space to retry"]
                 self.draw_display_txt(lines, 3 * [self.small_txt_size])
             if GameFrame.dev_mode:
                 self.fps_display.draw()
@@ -251,7 +250,14 @@ class SpaceWindow(GameFrame):
     def draw_sprite_objs(self):
         sprite_batch = Batch()
         self.rendered_sprite = []
-        objs = [self.model.player]
+        ship = self.model.player
+        if ship.is_active:
+            player_batch = Batch()
+            player_sprite = self.get_rendered_sprite(ship, player_batch)
+            self.rendered_sprite.append(player_sprite)
+            self.draw_flame(self.to_screen_x(ship.x), self.to_screen_y(ship.y), self.to_screen_x(ship.width))
+            player_batch.draw()
+        objs = []
         objs.extend(self.model.objects)
         for obj in objs:
             if obj.is_active:
