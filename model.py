@@ -73,7 +73,7 @@ class Model(GameModel):
         super().__init__()
         self.game_over = False
         self.tick = 1
-        self.tick_speed = 30
+        self.tick_speed = 60
         self.time = None
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
@@ -102,13 +102,13 @@ class Model(GameModel):
             alien_x = Model.ALIEN_X_OFF * 3  # Alien spawn x starting point.
             while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:  # Alien x spawn endpoint.
                 self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
+                alien_number += 1
 
                 if alien_columns == 0 and alien_rows == 0:
                     self.BOX_START = self.objects[-1].x
 
                 alien_x += self.ALIEN_WIDTH * 1.5  # Next alien spawn in row.
                 alien_columns += 1
-                alien_number += 1
 
                 if alien_columns == 14 and alien_rows == 0:
                     self.BOX_END = self.objects[-1].x + Model.ALIEN_WIDTH  # Dynamic Box end spawn
@@ -185,10 +185,12 @@ class Model(GameModel):
                 self.player.dx = 0
 
     def player_speed_trunc(self):
-        if self.player.dx < 0:
+        if self.player.dx < -Model.PLAYER_SPEED:
             self.player.dx = -Model.PLAYER_SPEED
-        elif self.player.dx > 0:
+            print('speed_trunc!')
+        elif self.player.dx > Model.PLAYER_SPEED:
             self.player.dx = Model.PLAYER_SPEED
+            print('speed_trunc!')
 
     def player_death_check(self, bullet=(0, 0)):
             for mob in self.objects[:]:
@@ -317,10 +319,23 @@ class Model(GameModel):
         if self.keys_pressed > 0:
             self.keys_pressed = 0
             self.player.dx = 0
-        else:
-            pass
 
-    def action(self, key_val: str, action_type: int):  # TODO write out possible bugs, find solution
+    def controller_logic(self, input_type):
+        if input_type == 'release':
+            if self.player.x <= 0 or self.player.x + self.player.width >= Model.MODEL_WIDTH:
+                print('a')
+                return True
+            if self.keys_pressed == 0 and self.player.dx == 0:
+                print('b')
+                return True
+
+        elif input_type == 'press':
+            if self.player.x <= 0 and self.player.dx < 0:
+                return True
+            if self.player.x + self.player.width >= Model.MODEL_WIDTH and self.player.dx > 0:
+                return True
+
+    def action(self, key_val: str, action_type: int):
         import view, frame  # avoids circular imports
         x1_ship = self.player.width / 32
         x2_ship = self.player.width / float(1.04065)
@@ -335,14 +350,13 @@ class Model(GameModel):
                     self.events.append(GameEvent(GameEvent.EventType.EXIT_MENU))
 
             if self.input:
-                if key_val == key.LEFT:
+                if key_val == key.LEFT or key_val == key.RIGHT:
                     self.keys_pressed += 1
-                    if not self.player.x <= 0 and not self.player.dx < 0:
-                        self.player.dx -= Model.PLAYER_SPEED
-                elif key_val == key.RIGHT:
-                    self.keys_pressed += 1
-                    if not self.player.x + self.player.width >= Model.MODEL_WIDTH and not self.player.dx > 0:
-                        self.player.dx += Model.PLAYER_SPEED
+                    if not self.controller_logic('press'):
+                        if key_val == key.LEFT:
+                            self.player.dx -= Model.PLAYER_SPEED
+                        else:
+                            self.player.dx += Model.PLAYER_SPEED
 
                 elif key_val == key.Q and self.q_countdown <= 0:
                     print("Wow! The Q has been pressed")
@@ -371,14 +385,12 @@ class Model(GameModel):
 
         if action_type == view.KEY_RELEASE:
             if self.input:
-                if key_val == key.LEFT:
+                if key_val == key.LEFT or key_val == key.RIGHT:
                     self.keys_pressed -= 1
-                    if not self.player.x <= 0 or not self.keys_pressed == 1 and not self.player.dx == 0:
-                        self.player.dx += Model.PLAYER_SPEED
-                elif key_val == key.RIGHT:
-                    self.keys_pressed -= 1
-                    if not self.player.x + self.player.width >= Model.MODEL_WIDTH or not self.keys_pressed == 1 and not self.player.dx == 0:
-                        self.player.dx -= Model.PLAYER_SPEED
+                    if self.keys_pressed < 0:
+                        self.keys_pressed = 0
+                    if not self.controller_logic('release'):
+                        self.player.dx += (1 if self.player.dx < 0 else -1) * Model.PLAYER_SPEED
 
 
 class Alien(GameObject):
