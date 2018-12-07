@@ -158,6 +158,9 @@ class SpaceWindow(GameFrame):
                                          colours, 1, 0.66)
             elif ev.type == GameEvent.EventType.GAME_OVER:
                 self.change_scene(self.Scene.GAME_OVER)
+            elif ev.type == GameEvent.EventType.LIFE_LOST:
+                print(">>>>>> A LIFE HAS BEEN LOST")
+                self.change_scene(self.Scene.NEXT_LEVEL)
             elif ev.type == GameEvent.EventType.EXIT_MENU:
                 self.exit_to_menu()
             elif ev.type == GameEvent.EventType.RESET_SCREEN:
