@@ -95,13 +95,11 @@ class GameFrame(Window):
         if self.scene == self.Scene.MAIN_MENU:
             for btn in self.main_btns:
                 if btn.is_on(x, y):
-                    print(btn.lbl)
                     btn.click()
         elif self.scene == self.Scene.MAIN_MENU_WITH_OPTIONS:
             # TODO this is temp
             for btn in self.opt_btns:
                 if btn.is_on(x, y):
-                    print(btn.lbl)
                     btn.click()
 
     def draw_main_btns(self):
@@ -185,20 +183,18 @@ class GameFrame(Window):
         for i, k in enumerate(opt_contents):
             opt = k
             choices = opt_contents[k]
-            print(i, opt, choices)
             y = 0.9 * (origin_y + panel_height) - i * (padding_y + btn_height)
 
-            btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height,
-                             partial(print, opt))
+            btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height)
             btn.color = dark
             self.opt_btns.append(btn)
+            btn_group = ButtonGroup()
             for j, choice in enumerate(opt_contents[k]):
                 btn = GameButton(choice, origin_x + opt_btn_width // 2 + (j + 1) * (opt_btn_width + padding_y),
                                  y, opt_btn_width,
-                                 opt_btn_height,
-                                 partial(print, opt))
+                                 opt_btn_height)
+                btn_group.add_btn(btn)
                 btn.color = darker
-                btn.func = btn.toggle
                 self.opt_btns.append(btn)
         close_size = opt_btn_height // 2
         options_close_btn = GameButton("", origin_x + panel_width - 2.5 * close_size,
@@ -257,7 +253,7 @@ class GameFrame(Window):
 class GameButton:
     DEF_COLOR = 4 * [125, 125, 125, 255]
 
-    def __init__(self, lbl: str, x: float, y: float, width: float, height: float, func):
+    def __init__(self, lbl: str, x: float, y: float, width: float, height: float, func=None):
         self.lbl = lbl
         self.x = x
         self.y = y
@@ -266,6 +262,7 @@ class GameButton:
         self.func = func
         self.color = GameButton.DEF_COLOR
         self.outlined: bool = False
+        self.btn_group = None
 
     def change_alpha(self, alpha):
         alpha = int(alpha)
@@ -282,10 +279,25 @@ class GameButton:
         return False
 
     def click(self):
-        self.func()
+        if self.func:
+            self.func()
+        if self.btn_group:
+            self.btn_group.toggle(self)
 
-    def toggle(self):
-        self.outlined = not self.outlined
+
+class ButtonGroup:
+    def __init__(self):
+        self.btns = []
+
+    def add_btn(self, btn):
+        btn.btn_group = self
+        self.btns.append(btn)
+
+    def toggle(self, switched_btn):
+        btn: GameButton
+        for btn in self.btns:
+            btn.outlined = True if btn == switched_btn else False
+
 
 # if __name__ == '__main__':
 #     g = GameFrame()
