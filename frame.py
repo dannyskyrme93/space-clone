@@ -5,7 +5,7 @@ import math
 import pyglet
 import sys
 from pyglet import graphics
-from pyglet.graphics import Batch, GL_QUADS
+from pyglet.graphics import Batch, GL_QUADS, GL_LINES
 from model import GameModel, GameEvent, GameObject
 from functools import partial
 
@@ -136,6 +136,19 @@ class GameFrame(Window):
                                                 btn.x + btn.width // 2, btn.y + btn.height // 2,
                                                 btn.x + btn.width // 2, btn.y - btn.height // 2]],
                           ['c4B', tuple(btn.color)])
+            if btn.outlined:
+                graphics.draw(8, GL_LINES, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
+                                                    btn.x - btn.width // 2, btn.y + btn.height // 2,
+
+                                                    btn.x - btn.width // 2, btn.y + btn.height // 2,
+                                                    btn.x + btn.width // 2, btn.y + btn.height // 2,
+
+                                                    btn.x + btn.width // 2, btn.y + btn.height // 2,
+                                                    btn.x + btn.width // 2, btn.y - btn.height // 2,
+
+                                                    btn.x + btn.width // 2, btn.y - btn.height // 2,
+                                                    btn.x - btn.width // 2, btn.y - btn.height // 2]])
+
             btn_lbl = pyglet.text.Label(btn.lbl,
                                         font_name='8Bit Wonder',
                                         font_size=0.3 * btn.height,
@@ -157,6 +170,7 @@ class GameFrame(Window):
 
         self.opt_btns = []
         opt_contents = self.get_options()
+        dark = [c - 80 for c in GameButton.DEF_COLOR]
         darker = [c - 40 for c in GameButton.DEF_COLOR]
 
         origin_x = (self.OPT_ORIGIN_X_PERCENT + 0.025) * self.width
@@ -173,9 +187,10 @@ class GameFrame(Window):
             choices = opt_contents[k]
             print(i, opt, choices)
             y = 0.9 * (origin_y + panel_height) - i * (padding_y + btn_height)
+
             btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height,
                              partial(print, opt))
-            btn.color = darker
+            btn.color = dark
             self.opt_btns.append(btn)
             for j, choice in enumerate(opt_contents[k]):
                 btn = GameButton(choice, origin_x + opt_btn_width // 2 + (j + 1) * (opt_btn_width + padding_y),
@@ -183,6 +198,7 @@ class GameFrame(Window):
                                  opt_btn_height,
                                  partial(print, opt))
                 btn.color = darker
+                btn.func = btn.toggle
                 self.opt_btns.append(btn)
         close_size = opt_btn_height // 2
         options_close_btn = GameButton("", origin_x + panel_width - 2.5 * close_size,
@@ -249,6 +265,7 @@ class GameButton:
         self.height = height
         self.func = func
         self.color = GameButton.DEF_COLOR
+        self.outlined: bool = False
 
     def change_alpha(self, alpha):
         alpha = int(alpha)
@@ -266,6 +283,9 @@ class GameButton:
 
     def click(self):
         self.func()
+
+    def toggle(self):
+        self.outlined = not self.outlined
 
 # if __name__ == '__main__':
 #     g = GameFrame()
