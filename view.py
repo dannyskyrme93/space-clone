@@ -456,7 +456,7 @@ class FallingBlock:
         self.y = y
         self.size = size
         self.dy = random.random() * upward_speed
-        self.dx = random.randint(-upward_speed / 8, upward_speed // 8)
+        self.dx = random.randint(-upward_speed // 8, upward_speed // 8)
         self.is_vanished = False
         self.colour = (self.DEF_COLOUR if colour is None else colour)
 
