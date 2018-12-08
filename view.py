@@ -21,6 +21,8 @@ class SpaceWindow(GameFrame):
         MAIN_TO_PLAYING = 4
         NEXT_LEVEL = 5
         MAIN_MENU_WITH_OPTIONS = 6
+        RESTART = 7
+        DEV_RESET = 8
 
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
@@ -57,6 +59,66 @@ class SpaceWindow(GameFrame):
         self.reset_flame_colours()
         self.is_counting = False
 
+    def trigger_events(self):
+        events = self.model.get_game_events()
+        for ev in events:
+            print("Event recieved: ", ev.type)
+            if ev.type == GameEvent.EventType.BLOOD_IMPACT:
+                colour = 4 * PixelSpillBlock.BLOOD_COLOUR
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         [colour], 0.5, 1)
+            elif ev.type == GameEvent.EventType.EXPLOSION:
+                colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
+                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
+                                         colours, 1, 0.66)
+            elif ev.type == GameEvent.EventType.GAME_OVER:
+                self.change_scene(self.Scene.GAME_OVER)
+            elif ev.type == GameEvent.EventType.EXIT_MENU:
+                self.exit_to_menu()
+            elif ev.type == GameEvent.EventType.RESET_SCREEN:
+                self.change_scene(self.Scene.RESTART)
+            elif ev.type == GameEvent.EventType.NEXT_LEVEL:
+                self.change_scene(self.Scene.NEXT_LEVEL)
+            elif ev.type == GameEvent.EventType.PLAYER_DEATH:
+                col = 4 * [80, 80, 80]
+                self.trigger_falling_parts(self.to_screen_x(ev.coordinates[0]),
+                                           self.to_screen_y(ev.coordinates[1]), col, self.model.player.width)
+            if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
+                self.play_sound(ev.sound)
+            self.model.events = []
+
+    def change_scene(self, scene):
+        if not self.scene or self.scene != scene:
+            if scene == self.Scene.PLAYING:
+                self.pixel_spills = []
+                self.falling_parts = []
+                self.is_counting = False
+                self.alpha = 0
+                self.cooldown = self.COOLDOWN
+                if not GameFrame.dev_mode:
+                    self.set_mouse_visible(False)
+                    if self.main_menu_song is not None:
+                        self.main_menu_song.pause()
+                        self.main_menu_song.delete()
+                        self.main_menu_song = None
+                if not self.model:
+                    self.set_model()
+            elif scene == self.Scene.MAIN_TO_PLAYING:
+                self.is_counting = True
+                self.set_mouse_visible(False)
+                self.cooldown = self.COOLDOWN
+            elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
+                self.is_counting = False
+                self.alpha = 255
+                self.set_mouse_visible(True)
+            elif scene == self.Scene.NEXT_LEVEL or scene == self.Scene.RESTART:
+                self.is_counting = True
+                self.cooldown = self.COOLDOWN
+            elif scene == self.Scene.CLOSING:
+                sys.exit()
+            print("Screen scene: change: ", self.scene, "->", scene)
+            self.scene = scene
+
     def update(self, dt):
         if self.cooldown >= 0 and self.is_counting:
             self.cooldown -= 1
@@ -75,10 +137,34 @@ class SpaceWindow(GameFrame):
             self.update_stars()
         elif self.scene == self.Scene.GAME_OVER:
             self.trigger_events()
-        elif self.scene == self.Scene.NEXT_LEVEL:
+        elif self.scene == self.Scene.NEXT_LEVEL or self.scene == self.Scene.RESTART:
             if self.cooldown <= 0:
                 self.model = Model()
                 self.change_scene(self.Scene.PLAYING)
+
+    def set_model(self):
+        self.model = Model()
+
+    def exit_to_menu(self):
+        self.set_model()
+        self.pixel_spills = []
+        self.falling_parts = []
+        self.change_scene(self.Scene.MAIN_MENU)
+
+    def trigger_falling_parts(self, src_x, src_y, colours=(255, 255, 255, 255), span=10):
+        num_of = 80
+        for x in np.linspace(src_x - span / 2, src_x + span / 2, num_of):
+            offset = random.randint(-10, 10)
+            self.falling_parts.append(FallingBlock(x + offset, src_y, 30, colours, 10))
+
+    def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
+        start = 0
+        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=40):
+            ran_x = random.randint(0, 15)
+            ran_y = random.randint(0, 15)
+            self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
+                                                     colours[random.randint(0, len(colours) - 1)],
+                                                     speed=speed_ratio, size=1))
 
     def get_btn_labels(self):
         return "START_GAME", "OPTIONS", "EXIT"
@@ -111,95 +197,6 @@ class SpaceWindow(GameFrame):
                 if is_loop:
                     self.star_pts[i][j] -= self.width
 
-    def change_scene(self, scene):
-        if not self.scene or self.scene != scene:
-            if scene == self.Scene.PLAYING:
-                self.pixel_spills = []
-                self.falling_parts = []
-                self.is_counting = False
-                self.alpha = 0
-                self.cooldown = self.COOLDOWN
-                if not GameFrame.dev_mode:
-                    self.set_mouse_visible(False)
-                    if self.main_menu_song is not None:
-                        self.main_menu_song.pause()
-                        self.main_menu_song.delete()
-                        self.main_menu_song = None
-                if not self.model:
-                    self.set_model()
-            elif scene == self.Scene.MAIN_TO_PLAYING:
-                self.is_counting = True
-                self.set_mouse_visible(False)
-                self.cooldown = self.COOLDOWN
-            elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
-                self.is_counting = False
-                self.alpha = 255
-                self.set_mouse_visible(True)
-            elif scene == self.Scene.NEXT_LEVEL:
-                self.is_counting = True
-                self.cooldown = self.COOLDOWN
-            elif scene == self.Scene.CLOSING:
-                sys.exit()
-            print("Screen scene: change: ", self.scene, "->", scene)
-            self.scene = scene
-
-    def trigger_events(self):
-
-        events = self.model.get_game_events()
-        for ev in events:
-            print("Event recieved: ", ev.type)
-            if ev.type == GameEvent.EventType.BLOOD_IMPACT:
-                colour = 4 * PixelSpillBlock.BLOOD_COLOUR
-                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         [colour], 0.5, 1)
-            elif ev.type == GameEvent.EventType.EXPLOSION:
-                colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
-                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         colours, 1, 0.66)
-            elif ev.type == GameEvent.EventType.GAME_OVER:
-                self.change_scene(self.Scene.GAME_OVER)
-            elif ev.type == GameEvent.EventType.LIFE_LOST:
-                print(">>>>>> A LIFE HAS BEEN LOST")
-                self.change_scene(self.Scene.NEXT_LEVEL)
-            elif ev.type == GameEvent.EventType.EXIT_MENU:
-                self.exit_to_menu()
-            elif ev.type == GameEvent.EventType.RESET_SCREEN:
-                self.model = Model()
-                self.change_scene(self.Scene.PLAYING)
-            elif ev.type == GameEvent.EventType.NEXT_LEVEL:
-                self.change_scene(self.Scene.NEXT_LEVEL)
-            elif ev.type == GameEvent.EventType.PLAYER_DEATH:
-                col = 4 * [80, 80, 80]
-                self.trigger_falling_parts(self.to_screen_x(ev.coordinates[0]),
-                                           self.to_screen_y(ev.coordinates[1]), col, self.model.player.width)
-            if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
-                self.play_sound(ev.sound)
-            self.model.events = []
-
-    def set_model(self):
-        self.model = Model()
-
-    def exit_to_menu(self):
-        self.set_model()
-        self.pixel_spills = []
-        self.falling_parts = []
-        self.change_scene(self.Scene.MAIN_MENU)
-
-    def trigger_falling_parts(self, src_x, src_y, colours=(255, 255, 255, 255), span=10):
-        num_of = 80
-        for x in np.linspace(src_x - span / 2, src_x + span / 2, num_of):
-            offset = random.randint(-10, 10)
-            self.falling_parts.append(FallingBlock(x + offset, src_y, 30, colours, 10))
-
-    def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
-        start = 0
-        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=40):
-            ran_x = random.randint(0, 15)
-            ran_y = random.randint(0, 15)
-            self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
-                                                     colours[random.randint(0, len(colours) - 1)],
-                                                     speed=speed_ratio, size=1))
-
     def reset_flame_colours(self):
         self.flame_colours = []
         variation_blue = 255
@@ -221,7 +218,7 @@ class SpaceWindow(GameFrame):
 
             self.draw_header()
             if self.scene == self.Scene.GAME_OVER:
-                lines = ["FpushYou Lose Idiot", "R to Exit.", "Space to retry"]
+                lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
                 self.draw_display_txt(lines, 3 * [self.small_txt_size])
             if GameFrame.dev_mode:
                 self.fps_display.draw()
@@ -230,7 +227,7 @@ class SpaceWindow(GameFrame):
             self.draw_stars()
             self.draw_header()
             self.draw_main_btns()
-        elif self.scene == self.Scene.NEXT_LEVEL:
+        elif self.scene == self.Scene.NEXT_LEVEL or self.scene == self.Scene.RESTART:
             self.clear()
             self.draw_stars()
             self.draw_header()
@@ -238,7 +235,8 @@ class SpaceWindow(GameFrame):
             self.draw_pixel_spills()
             self.draw_falling_parts()
 
-            lines = ["NEXT LEVEL IN", str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1)]
+            lines = ["NEXT LEVEL IN" if self.scene == self.Scene.NEXT_LEVEL else "RESTART IN",
+                     str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1)]
             self.draw_display_txt(lines, [self.large_txt_size, self.large_txt_size])
 
     def draw_stars(self):
