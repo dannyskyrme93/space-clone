@@ -260,6 +260,8 @@ class SpaceWindow(GameFrame):
             player_batch.draw()
         objs = []
         objs.extend(self.model.objects)
+        if hasattr(self.model, 'boxes'):
+            objs.extend(self.model.boxes)
         for obj in objs:
             if obj.is_active:
                 sprite = self.get_rendered_sprite(obj, sprite_batch)
