@@ -226,8 +226,6 @@ class Model(GameModel):
             if self.hitbox_check(bullet, mob):
                 self.events.append(GameEvent(GameEvent.EventType.ALIEN_DEATH,
                                              (bullet[0], bullet[1] + self.bullet_height), args=[100]))
-                self.events.append(GameEvent(GameEvent.EventType.POINT_ADD,
-                                             coordinates=[bullet[0], bullet[1] + self.bullet_height], args=100))
                 self.points += 100
                 self.objects.remove(mob)
                 self.aliens -= 1
