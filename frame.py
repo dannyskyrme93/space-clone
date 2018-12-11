@@ -155,6 +155,19 @@ class GameFrame(Window):
                                         anchor_x='center', anchor_y='center',
                                         color=(255, 255, 255, btn.get_alpha()))
             btn_lbl.draw()
+        btn_width = self.height * GameFrame.MAIN_BTN_HEIGHT_PERCENT
+        origin_x = (self.OPT_ORIGIN_X_PERCENT + 0.025) * self.width
+        origin_y = (self.OPT_ORIGIN_Y_PERCENT + 0.025) * self.height
+        close_size = btn_width // 4
+        offset = 1
+        close_origin_x, close_origin_y = origin_x + panel_width - 2.5 * close_size - close_size // 2, \
+                                         origin_y + panel_height - 1.75 * close_size - close_size // 2
+        pyglet.graphics.draw(4, GL_LINES, ['v2f', [close_origin_x + offset, close_origin_y + offset,
+                                                   close_origin_x + close_size - offset,
+                                                   close_origin_y + close_size - offset,
+                                                   close_origin_x + offset, close_origin_y + close_size - offset,
+                                                   close_origin_x + close_size - offset, close_origin_y + offset]],
+                             ['c4B', 4 * [255, 255, 255, 100]])
 
     def set_btns(self):
         btn_width, btn_height = self.width * GameFrame.MAIN_BTN_WIDTH_PERCENT, \
@@ -197,8 +210,10 @@ class GameFrame(Window):
                 btn.color = darker
                 self.opt_btns.append(btn)
         close_size = opt_btn_height // 2
-        options_close_btn = GameButton("", origin_x + panel_width - 2.5 * close_size,
-                                       origin_y + panel_height - 1.75 * close_size,
+        close_origin_x, close_origin_y = origin_x + panel_width - 2.5 * close_size, \
+                                         origin_y + panel_height - 1.75 * close_size
+        options_close_btn = GameButton("", close_origin_x,
+                                       close_origin_y,
                                        close_size, close_size, partial(self.change_scene,
                                                                        self.Scene.MAIN_MENU))
         options_close_btn.color = 4 * (179, 30, 60, 255)
@@ -297,7 +312,6 @@ class ButtonGroup:
         btn: GameButton
         for btn in self.btns:
             btn.outlined = True if btn == switched_btn else False
-
 
 # if __name__ == '__main__':
 #     g = GameFrame()
