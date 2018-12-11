@@ -51,6 +51,7 @@ class SpaceWindow(GameFrame):
         self.rendered_sprite = []
         self.pixel_spills = []
         self.falling_parts = []
+        self.pt_lbls = []
         self.star_batch = []
         self.main_btns[0].func = partial(self.change_scene, self.Scene.MAIN_TO_PLAYING)
         self.main_btns[1].func = partial(self.change_scene, self.Scene.MAIN_MENU_WITH_OPTIONS)
@@ -61,12 +62,14 @@ class SpaceWindow(GameFrame):
 
     def trigger_events(self):
         events = self.model.get_game_events()
+        ev: GameEvent
         for ev in events:
             print("Event recieved: ", ev.type)
             if ev.type == GameEvent.EventType.ALIEN_DEATH:
                 colour = 4 * PixelSpillBlock.BLOOD_COLOUR
-                self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
-                                         [colour], 0.5, 1)
+                x, y = self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1])
+                self.trigger_pixel_spill(x, y, [colour], 0.5, 1)
+                self.trigger_pts_lbl(str(ev.args[0]), x, y)
             elif ev.type == GameEvent.EventType.EXPLOSION:
                 colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
@@ -151,6 +154,9 @@ class SpaceWindow(GameFrame):
         self.falling_parts = []
         self.change_scene(self.Scene.MAIN_MENU)
 
+    def trigger_pts_lbl(self, txt, x, y):
+        self.pt_lbls.append(FadingPoints(txt, x, y))
+
     def trigger_falling_parts(self, src_x, src_y, colours=(255, 255, 255, 255), span=10):
         num_of = 80
         for x in np.linspace(src_x - span / 2, src_x + span / 2, num_of):
@@ -215,7 +221,7 @@ class SpaceWindow(GameFrame):
 
             self.draw_pixel_spills()
             self.draw_falling_parts()
-
+            self.draw_point_lbls()
             self.draw_header()
             if self.scene == self.Scene.GAME_OVER:
                 lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
@@ -301,6 +307,24 @@ class SpaceWindow(GameFrame):
         sprite.scale_x = tgt_x * self.main_width / sprite.width
         sprite.scale_y = tgt_y * self.height / sprite.height
         return sprite
+
+    def draw_point_lbls(self):
+        pts: FadingPoints
+        font_size = self.main_width // 140
+        for pts in self.pt_lbls:
+            pts.update()
+            print("alpha, is", pts.alpha, pts.is_vanished)
+            if pts.is_vanished:
+                self.pt_lbls.remove(pts)
+            else:
+                pts_lbl = pyglet.text.Label(pts.txt,
+                                            font_name='8Bit Wonder',
+                                            font_size=font_size,
+                                            width=self.main_width // 10, height=self.header_height // 2,
+                                            x=pts.x, y=pts.y,
+                                            anchor_x='left', anchor_y='top',
+                                            color=(255, 255, 255, pts.alpha))
+                pts_lbl.draw()
 
     def draw_pixel_spills(self):
         pxl_batch = Batch()
@@ -393,20 +417,20 @@ class SpaceWindow(GameFrame):
                          ('c4B', 2 * (255, 255, 255, complement)))
         header_batch.draw()
         self.enemies_lbl = pyglet.text.Label("Enemies Remaining: " + ("" if not self.model else str(self.model.aliens)),
-                                          font_name='8Bit Wonder',
-                                          font_size=self.main_width // 60,
-                                          width=self.main_width, height=self.header_height,
-                                          x=self.main_width // 40, y=self.main_height + self.header_height,
-                                          anchor_x='left', anchor_y='top',
-                                          color=(255, 255, 255, complement))
-        self.enemies_lbl.draw()
-        self.score_lbl = pyglet.text.Label("Score: " + ("" if not self.model else str(self.model.points)),
                                              font_name='8Bit Wonder',
                                              font_size=self.main_width // 60,
                                              width=self.main_width, height=self.header_height,
-                                             x=21*self.main_width // 40, y=self.main_height + self.header_height,
+                                             x=self.main_width // 40, y=self.main_height + self.header_height,
                                              anchor_x='left', anchor_y='top',
                                              color=(255, 255, 255, complement))
+        self.enemies_lbl.draw()
+        self.score_lbl = pyglet.text.Label("Score: " + ("" if not self.model else str(self.model.points)),
+                                           font_name='8Bit Wonder',
+                                           font_size=self.main_width // 60,
+                                           width=self.main_width, height=self.header_height,
+                                           x=21 * self.main_width // 40, y=self.main_height + self.header_height,
+                                           anchor_x='left', anchor_y='top',
+                                           color=(255, 255, 255, complement))
         self.score_lbl.draw()
 
     def play_main_menu_music(self):
@@ -448,6 +472,23 @@ class PixelSpillBlock:
         if self.size <= 0:
             self.is_vanished = True
             self.size = 0
+
+
+class FadingPoints:
+    FADE_DECAY = 0.95
+
+    def __init__(self, txt, x, y):
+        self.txt = txt
+        self.x = x
+        self.y = y
+        self.alpha = 255
+        self.is_vanished = False
+
+    def update(self):
+        if self.alpha <= 20:
+            self.is_vanished = True
+        else:
+            self.alpha = int(self.alpha * self.FADE_DECAY)
 
 
 class FallingBlock:
