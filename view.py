@@ -63,7 +63,7 @@ class SpaceWindow(GameFrame):
         events = self.model.get_game_events()
         for ev in events:
             print("Event recieved: ", ev.type)
-            if ev.type == GameEvent.EventType.BLOOD_IMPACT:
+            if ev.type == GameEvent.EventType.ALIEN_DEATH:
                 colour = 4 * PixelSpillBlock.BLOOD_COLOUR
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
                                          [colour], 0.5, 1)
@@ -273,7 +273,7 @@ class SpaceWindow(GameFrame):
         y_padding = self.main_width // 40
         origin_y = 0.6 * self.height
         y_add = 0
-        txt_batch =  Batch()
+        txt_batch = Batch()
         for i, line in enumerate(lines):
             lbl = pyglet.text.Label(
                 line,
@@ -392,14 +392,22 @@ class SpaceWindow(GameFrame):
                                                      self.main_width, self.main_height]),
                          ('c4B', 2 * (255, 255, 255, complement)))
         header_batch.draw()
-        self.head_lbl = pyglet.text.Label("Enemies Remaining: " + ("" if not self.model else str(self.model.aliens)),
+        self.enemies_lbl = pyglet.text.Label("Enemies Remaining: " + ("" if not self.model else str(self.model.aliens)),
                                           font_name='8Bit Wonder',
-                                          font_size=self.main_width // 50,
+                                          font_size=self.main_width // 60,
                                           width=self.main_width, height=self.header_height,
                                           x=self.main_width // 40, y=self.main_height + self.header_height,
                                           anchor_x='left', anchor_y='top',
                                           color=(255, 255, 255, complement))
-        self.head_lbl.draw()
+        self.enemies_lbl.draw()
+        self.score_lbl = pyglet.text.Label("Score: " + ("" if not self.model else str(self.model.points)),
+                                             font_name='8Bit Wonder',
+                                             font_size=self.main_width // 60,
+                                             width=self.main_width, height=self.header_height,
+                                             x=21*self.main_width // 40, y=self.main_height + self.header_height,
+                                             anchor_x='left', anchor_y='top',
+                                             color=(255, 255, 255, complement))
+        self.score_lbl.draw()
 
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
