@@ -83,11 +83,11 @@ class Model(GameModel):
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
-        self.bullet_max = 4
+        self.bullet_max = 6
         self.alien_bullet_max = 100
         self.bullet_height = Model.MODEL_HEIGHT / 19
         self.bullet_dy = Model.MODEL_HEIGHT / 100
-        self.countdown = 20
+        self.countdown = 15
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
@@ -107,7 +107,7 @@ class Model(GameModel):
         while alien_y > self.MODEL_HEIGHT / 2 and alien_rows < 4:  # Alien y spawn endpoint.
             alien_x = Model.ALIEN_X_OFF * 3  # Alien spawn x starting point.
             while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:  # Alien x spawn endpoint.
-                self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
+                self.objects.append(Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png"))
                 alien_number += 1
 
                 if alien_columns == 0 and alien_rows == 0:
@@ -235,13 +235,15 @@ class Model(GameModel):
         if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player or aliens shoot player
             if self.real_timer(dt, 3):
                 if self.tick % 10 == 0:
+                    if self.input:
+                        self.player.is_active = False
+                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
+
                     self.key_neutraliser()
                     self.alien_ending()
             else:
-                self.player.is_active = False
                 Model.PLAYER_LIVES -= 1
                 self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))
-                self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
                 if Model.PLAYER_LIVES == 0:  # TODO temp while player lives not implemented
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
