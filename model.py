@@ -1,6 +1,6 @@
 from pyglet.window import key
 import enum
-from random import randint
+from random import random as rando
 from abc import ABCMeta, abstractmethod
 
 
@@ -23,7 +23,7 @@ class GameModel:
 
 class GameEvent:
     class EventType(enum.Enum):
-        BLOOD_IMPACT = 1
+        ALIEN_DEATH = 1
         PLAYER_DEATH = 2
         EXPLOSION = 3
         GAME_OVER = 4
@@ -37,7 +37,6 @@ class GameEvent:
         SCREEN_EDGE = 12
         ALIEN_MOVE = 13
         PLAYER_IMG_CHANGE = 14
-        POINT_ADD = 15
 
     def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
@@ -47,21 +46,6 @@ class GameEvent:
 
     def __repr__(self):
         return f'{self.type}, at: {self.coordinates}\nwith sound: {self.sound} and args: {self.args}.'
-
-
-'''
-class RandomEvents:
-    class EventType:
-        ALIEN_SHOOT = 1
-        PLAYER_FIRE_BONUS = 2
-        STRAY_ALIEN = 3
-
-    def __init__(self, type_of, coordinates=None, sound=None, args=None):
-        self.type = type_of
-        self.coordinates = coordinates
-        self.sound = sound
-        self.args = args
-'''
 
 
 class GameObject:
@@ -108,6 +92,7 @@ class Model(GameModel):
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
         self.keys_pressed = 0
+        self.boxes = []
         self.events = []
         self.objects = []  # list of Game Objects, will automatically draw on screen
         self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
@@ -147,8 +132,11 @@ class Model(GameModel):
     def get_game_events(self):
         return self.events
 
-    def random_events(self, mob):
-        if randint(0, 56) == 56 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+    def power_box_spawn(self):
+        pass
+
+    def alien_shoot(self, mob):
+        if rando() <= 0.05 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
             self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
             self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
@@ -156,7 +144,7 @@ class Model(GameModel):
         for mob in self.objects[:]:
             self.update_position(mob, x_update, y_update)
             # self.events.append(GameEvent(GameEvent.EventType.ALIEN_MOVE, sound="x.mp3"))  #  Alien move sound
-            self.random_events(mob)
+            self.alien_shoot(mob)
 
     def alien_update(self):
         if self.ALIEN_MOVE_RIGHT:
@@ -236,8 +224,8 @@ class Model(GameModel):
     def alien_death_check(self, bullet):
         for mob in self.objects[:]:
             if self.hitbox_check(bullet, mob):
-                self.events.append(GameEvent(GameEvent.EventType.BLOOD_IMPACT,
-                                             (bullet[0], bullet[1] + self.bullet_height)))
+                self.events.append(GameEvent(GameEvent.EventType.ALIEN_DEATH,
+                                             (bullet[0], bullet[1] + self.bullet_height), args=[100]))
                 self.events.append(GameEvent(GameEvent.EventType.POINT_ADD,
                                              coordinates=[bullet[0], bullet[1] + self.bullet_height], args=100))
                 self.points += 100
@@ -266,10 +254,10 @@ class Model(GameModel):
         elif self.player.is_active and self.aliens <= 0:  # Player defeated aliens
             self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
 
-    def alien_ending(self, random=0):  # TODO work out why aliens aren't leaving screen smoothly
+    def alien_ending(self, rand=0):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
-            if random:
-                self.random_events(mob)
+            if rand:
+                self.alien_shoot(mob)
             if mob.y + mob.height < 0:
                 self.objects.remove(mob)
                 self.aliens -= 1
@@ -293,6 +281,9 @@ class Model(GameModel):
                 self.bullets.remove(bullet)
 
             self.alien_death_check(bullet)
+
+    def box_update(self):
+        pass
 
     def update_position(self, piece, dx, dy):
         piece.dx = dx
@@ -329,7 +320,7 @@ class Model(GameModel):
                 self.alien_update()
             elif self.aliens > 0:
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
-                self.alien_ending(random=True)
+                self.alien_ending(rand=True)
 
         self.player_speed_trunc()
         self.player_edge_check()
