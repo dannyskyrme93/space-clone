@@ -95,6 +95,7 @@ class SpaceWindow(GameFrame):
             if scene == self.Scene.PLAYING:
                 self.pixel_spills = []
                 self.falling_parts = []
+                self.pts = []
                 self.is_counting = False
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
@@ -152,6 +153,7 @@ class SpaceWindow(GameFrame):
         self.set_model()
         self.pixel_spills = []
         self.falling_parts = []
+        self.pt_lbls = []
         self.change_scene(self.Scene.MAIN_MENU)
 
     def trigger_pts_lbl(self, txt, x, y):
@@ -165,7 +167,7 @@ class SpaceWindow(GameFrame):
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
-        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=40):
+        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=20):
             ran_x = random.randint(0, 15)
             ran_y = random.randint(0, 15)
             self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
@@ -217,8 +219,8 @@ class SpaceWindow(GameFrame):
             self.clear()
             self.draw_stars()
             self.draw_lasers()
-            self.draw_sprite_objs()
-
+            if self.scene == self.Scene.PLAYING:
+                self.draw_sprite_objs()
             self.draw_pixel_spills()
             self.draw_falling_parts()
             self.draw_point_lbls()
@@ -240,6 +242,7 @@ class SpaceWindow(GameFrame):
 
             self.draw_pixel_spills()
             self.draw_falling_parts()
+            self.draw_point_lbls()
 
             lines = ["NEXT LEVEL IN" if self.scene == self.Scene.NEXT_LEVEL else "RESTART IN",
                      str((self.cooldown // (math.ceil(self.COOLDOWN // 3))) + 1)]
@@ -311,9 +314,9 @@ class SpaceWindow(GameFrame):
     def draw_point_lbls(self):
         pts: FadingPoints
         font_size = self.main_width // 140
+        pts_batch = Batch()
         for pts in self.pt_lbls:
             pts.update()
-            print("alpha, is", pts.alpha, pts.is_vanished)
             if pts.is_vanished:
                 self.pt_lbls.remove(pts)
             else:
@@ -323,8 +326,9 @@ class SpaceWindow(GameFrame):
                                             width=self.main_width // 10, height=self.header_height // 2,
                                             x=pts.x, y=pts.y,
                                             anchor_x='left', anchor_y='top',
-                                            color=(255, 255, 255, pts.alpha))
-                pts_lbl.draw()
+                                            color=(255, 255, 255, pts.alpha),
+                                            batch=pts_batch)
+        pts_batch.draw()
 
     def draw_pixel_spills(self):
         pxl_batch = Batch()
@@ -447,7 +451,7 @@ class PixelSpillBlock:
     FLAME_COLOURS = [(255, 91, 20),
                      (255, 35, 35),
                      (255, 162, 85)]
-    MAX_SPEED = 3
+    MAX_SPEED = 2
     SIZE_DECAY: float = 0.2
     TICK_RATE = 2
     DEF_SIZE = 8
