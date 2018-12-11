@@ -37,6 +37,7 @@ class GameEvent:
         SCREEN_EDGE = 12
         ALIEN_MOVE = 13
         PLAYER_IMG_CHANGE = 14
+        GUN_JAM = 15
 
     def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
@@ -71,7 +72,7 @@ class Model(GameModel):
     ALIEN_HEIGHT = GameModel.MODEL_HEIGHT / 15
     ALIEN_Y_OFF = GameModel.MODEL_HEIGHT / 30  # Offset from top of screen.
     ALIEN_X_OFF = GameModel.MODEL_WIDTH / 40  # Offset from side of screen.
-    PLAYER_LIVES = 2
+    PLAYER_LIVES = 2  # TODO temp while better solution not present
 
     def __init__(self):
         super().__init__()
@@ -83,14 +84,16 @@ class Model(GameModel):
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
-        self.bullet_max = 4
+        self.bullet_max = 6
         self.alien_bullet_max = 100
         self.bullet_height = Model.MODEL_HEIGHT / 19
         self.bullet_dy = Model.MODEL_HEIGHT / 100
-        self.countdown = 20
+        self.countdown = 15
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
+        self.q_jam = False
+        self.e_jam = False
         self.keys_pressed = 0
         self.boxes = []
         self.events = []
@@ -107,7 +110,7 @@ class Model(GameModel):
         while alien_y > self.MODEL_HEIGHT / 2 and alien_rows < 4:  # Alien y spawn endpoint.
             alien_x = Model.ALIEN_X_OFF * 3  # Alien spawn x starting point.
             while alien_x < self.MODEL_WIDTH - self.ALIEN_X_OFF * 4 and alien_columns < 15:  # Alien x spawn endpoint.
-                self.objects += [Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png")]
+                self.objects.append(Alien(alien_x, alien_y, self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "alien.png"))
                 alien_number += 1
 
                 if alien_columns == 0 and alien_rows == 0:
@@ -202,24 +205,24 @@ class Model(GameModel):
             print('speed_trunc!')
 
     def player_death_check(self, bullet=(0, 0)):
-            for mob in self.objects[:]:
-                if mob.y <= 0:  # Monsters off bottom edge of screen
+        for mob in self.objects[:]:
+            if mob.y <= 0:  # Monsters off bottom edge of screen
+                self.player.is_double_blown, self.player.is_blown = True, True
+                self.player.img_name = "x-wing_very_burnt.png"
+
+            elif mob.y <= self.player.y + self.player.height:
+                if self.hitbox_check(mob, self.player):
                     self.player.is_double_blown, self.player.is_blown = True, True
                     self.player.img_name = "x-wing_very_burnt.png"
 
-                elif mob.y <= self.player.y + self.player.height:
-                    if self.hitbox_check(mob, self.player):
-                        self.player.is_double_blown, self.player.is_blown = True, True
-                        self.player.img_name = "x-wing_very_burnt.png"
-
-            if self.hitbox_check(bullet, self.player):
-                self.alien_bullets.remove(bullet)
-                if self.player.is_blown:  # If player hit once
-                    self.player.is_double_blown = True
-                    self.player.img_name = "x-wing_very_burnt.png"
-                if not self.player.is_blown:  # Player hit nonce
-                    self.player.is_blown = True
-                    self.player.img_name = "x-wing_burnt.png"
+        if self.hitbox_check(bullet, self.player):
+            self.alien_bullets.remove(bullet)
+            if self.player.is_blown:  # If player hit once
+                self.player.is_double_blown = True
+                self.player.img_name = "x-wing_very_burnt.png"
+            if not self.player.is_blown:  # Player hit nonce
+                self.player.is_blown = True
+                self.player.img_name = "x-wing_burnt.png"
 
     def alien_death_check(self, bullet):
         for mob in self.objects[:]:
@@ -228,20 +231,26 @@ class Model(GameModel):
                                              (bullet[0], bullet[1] + self.bullet_height), args=[100]))
                 self.points += 100
                 self.objects.remove(mob)
-                self.aliens -= 1
+                if type(self.aliens) == int:
+                    self.aliens -= 1
                 self.bullets.remove(bullet)
 
     def screen_change(self, dt):
         if self.player.is_double_blown:  # Aliens reach bottom of screen or Alien kill player or aliens shoot player
             if self.real_timer(dt, 3):
                 if self.tick % 10 == 0:
+                    if self.input:
+                        self.player.is_active = False
+                        if self.aliens == 1:
+                            print("Unlucky bro.")
+                        self.aliens = "/"
+                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
+
                     self.key_neutraliser()
                     self.alien_ending()
             else:
-                self.player.is_active = False
                 Model.PLAYER_LIVES -= 1
                 self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))
-                self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
                 if Model.PLAYER_LIVES == 0:  # TODO temp while player lives not implemented
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
@@ -250,7 +259,8 @@ class Model(GameModel):
                     self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
         elif self.player.is_active and self.aliens <= 0:  # Player defeated aliens
-            self.events.append(GameEvent(GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
+            self.events.append(GameEvent(
+                GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
 
     def alien_ending(self, rand=0):  # TODO work out why aliens aren't leaving screen smoothly
         for mob in self.objects:
@@ -258,7 +268,8 @@ class Model(GameModel):
                 self.alien_shoot(mob)
             if mob.y + mob.height < 0:
                 self.objects.remove(mob)
-                self.aliens -= 1
+                if type(self.aliens) == int:
+                    self.aliens -= 1
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
 
     def alien_bullet_update(self):
@@ -316,7 +327,7 @@ class Model(GameModel):
             self.tick = 0
             if not self.player.is_blown:
                 self.alien_update()
-            elif self.aliens > 0:
+            elif type(self.aliens) == int and self.aliens > 0 and self.player.is_active:
                 self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
                 self.alien_ending(rand=True)
 
@@ -374,19 +385,39 @@ class Model(GameModel):
                         else:
                             self.player.dx += Model.PLAYER_SPEED
 
-                elif key_val == key.Q and self.q_countdown <= 0:
+                elif key_val == key.Q:
                     print("Wow! The Q has been pressed")
                     if len(self.bullets) < self.bullet_max:
-                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
-                        self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
-                        self.q_countdown = self.countdown
+                        if self.q_jam:
+                            if self.q_countdown <= 0:
+                                self.q_jam = False
+                            self.events.append(GameEvent(GameEvent.EventType.GUN_JAM, coordinates=
+                            [self.player.x + x1_ship, self.player.y + y_ship]))
+                        elif self.q_countdown > 0 and rando() < 0.1:
+                            print("Gun jam!")
+                            self.q_jam = True
+                            self.q_countdown = self.countdown + 10
+                        else:
+                            self.q_countdown = self.countdown
+                            self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
+                            self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
 
                 elif key_val == key.W and self.e_countdown <= 0:
                     print("Wow! The E has been pressed")
                     if len(self.bullets) < self.bullet_max:
-                        self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
-                        self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
-                        self.e_countdown = self.countdown
+                        if self.e_jam:
+                            if self.e_countdown <= 0:
+                                self.e_jam = False
+                            self.events.append(GameEvent(GameEvent.EventType.GUN_JAM, coordinates=
+                            [self.player.x + x2_ship, self.player.y + y_ship]))
+                        elif self.e_countdown > 0 and rando() < 0.2:
+                            print("Gun jam!")
+                            self.e_jam = True
+                            self.e_countdown = self.countdown + 10
+                        else:
+                            self.e_countdown = self.countdown
+                            self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
+                            self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
 
                 if frame.GameFrame.dev_mode:
                     if key_val == key.G:
