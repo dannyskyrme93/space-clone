@@ -46,16 +46,16 @@ class GameFrame(Window):
         self.scene = None
         self.max_cooldown = 0
         self.cooldown = self.max_cooldown
+        self.settings = GameSettings(self, not GameFrame.dev_mode)
+        self.sound_players = []
         if not GameFrame.dev_mode:
             self.change_scene(self.Scene.MAIN_MENU)
-            self.sound_player = pyglet.media.Player()
             self.set_fullscreen(True)
             self.main_width = self.width
             ratio = self.header_height / self.main_height
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
             self.sound_base = {}
-            self.play_main_menu_music()
         else:
             self.set_model()
             self.change_scene(self.Scene.PLAYING)
@@ -195,13 +195,13 @@ class GameFrame(Window):
         padding_y = opt_btn_height // 4
         for i, k in enumerate(opt_contents):
             opt = k
-            choices = opt_contents[k]
+            parent_lbl = k
             y = 0.9 * (origin_y + panel_height) - i * (padding_y + btn_height)
 
             btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height)
             btn.color = dark
             self.opt_btns.append(btn)
-            btn_group = ButtonGroup()
+            btn_group = ButtonGroup(k)
             for j, choice in enumerate(opt_contents[k]):
                 btn = GameButton(choice, origin_x + opt_btn_width // 2 + (j + 1) * (opt_btn_width + padding_y),
                                  y, opt_btn_width,
@@ -218,6 +218,17 @@ class GameFrame(Window):
                                                                        self.Scene.MAIN_MENU))
         options_close_btn.color = 4 * (179, 30, 60, 255)
         self.opt_btns.append(options_close_btn)
+
+    def play_sound(self, sound_name: str):
+        if self.settings.has_sound:
+            src = pyglet.media.load("audio/" + sound_name)
+            # src.volume = 1 if self.settings.has_sound else 0
+            self.sound_players.append(src)
+            src.play()
+
+    def set_sound_volume(self, vol):
+        for player in self.sound_players:
+            player.volume = vol
 
     def to_screen_x(self, mod_x):
         return self.main_width * mod_x // self.model.MODEL_WIDTH
@@ -241,18 +252,12 @@ class GameFrame(Window):
         raise NotImplementedError
 
     def get_options(self):
-        return {"Choice 1": ["Something", "Some"], "Choice 2": {"Something2", "Yeh"}}
+        raise NotImplementedError
 
     def get_btn_labels(self):
         raise NotImplementedError
 
     def set_model(self):
-        raise NotImplementedError
-
-    def play_main_menu_music(self):
-        raise NotImplementedError
-
-    def play_sound(self, ev: GameEvent):
         raise NotImplementedError
 
     def update(self, dt):
@@ -301,7 +306,8 @@ class GameButton:
 
 
 class ButtonGroup:
-    def __init__(self):
+    def __init__(self, parent_lbl):
+        self.parent = parent_lbl
         self.btns = []
 
     def add_btn(self, btn):
@@ -312,6 +318,38 @@ class ButtonGroup:
         btn: GameButton
         for btn in self.btns:
             btn.outlined = True if btn == switched_btn else False
+
+
+class GameSettings:
+    def __init__(self, frame: GameFrame, has_sound):
+        self.keyboard_scheme = KeyScheme(KeyScheme.Scheme.QW_SCHEME)
+        self.has_sound = has_sound
+        self.frame = frame
+
+    def set_sound(self, has_sound):
+        self.has_sound = has_sound
+        self.frame.set_sound_volume(1 if has_sound else 0)
+
+
+class KeyScheme:
+    class Scheme(Enum):
+        QW_SCHEME = 0
+
+    class Actions(Enum):
+        MOVE_LEFT = 0
+        MOVE_RIGHT = 1
+        PAUSE = 2
+
+    def __init__(self, scheme):
+        self.scheme = None
+        self.set_scheme(scheme)
+
+    def set_scheme(self, scheme):
+        if scheme == KeyScheme.Scheme.QW_SCHEME:
+            self.scheme = {key.Q: KeyScheme.Actions.MOVE_LEFT,
+                           key.W: KeyScheme.Actions.MOVE_RIGHT,
+                           key.P: KeyScheme.Actions.PAUSE}
+
 
 # if __name__ == '__main__':
 #     g = GameFrame()

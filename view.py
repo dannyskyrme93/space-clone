@@ -56,7 +56,16 @@ class SpaceWindow(GameFrame):
         self.main_btns[0].func = partial(self.change_scene, self.Scene.MAIN_TO_PLAYING)
         self.main_btns[1].func = partial(self.change_scene, self.Scene.MAIN_MENU_WITH_OPTIONS)
         self.main_btns[2].func = partial(self.change_scene, self.Scene.CLOSING)
-
+        for btn in self.opt_btns:
+            if btn.btn_group and btn.btn_group.parent == "SOUND" and not dev_mode:
+                if btn.lbl.upper() == "ON":
+                    btn.func = partial(lambda f, b: [f.settings.set_sound(b)], self, True)
+                    btn.click()
+                else:
+                    btn.func = partial(lambda f, b: [f.settings.set_sound(b)], self, False)
+                    self.settings.has_sound = False
+            elif btn.lbl.upper() == "DEFAULT" and btn.btn_group.parent == "CONTROLS":
+                btn.click()
         self.reset_flame_colours()
         self.is_counting = False
 
@@ -112,6 +121,8 @@ class SpaceWindow(GameFrame):
                 self.set_mouse_visible(False)
                 self.cooldown = self.COOLDOWN
             elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
+                if not self.main_menu_song:
+                    self.play_main_menu_music()
                 self.is_counting = False
                 self.alpha = 255
                 self.set_mouse_visible(True)
@@ -439,10 +450,10 @@ class SpaceWindow(GameFrame):
 
     def play_main_menu_music(self):
         self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
+        self.sound_players.append(self.main_menu_song)
 
-    def play_sound(self, sound_name: str):
-        src = pyglet.media.load("audio/" + sound_name)
-        src.play()
+    def get_options(self):
+        return {"CONTROLS": ["DEFAULT", ], "SOUND": {"ON", "OFF"}}
 
 
 class PixelSpillBlock:
@@ -476,6 +487,9 @@ class PixelSpillBlock:
         if self.size <= 0:
             self.is_vanished = True
             self.size = 0
+
+    def get_options(self):
+        return {"CONTROLS": ["QW"], "SOUND": ["ON", "OFF"]}
 
 
 class FadingPoints:
