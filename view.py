@@ -108,7 +108,7 @@ class SpaceWindow(GameFrame):
                 self.is_counting = False
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
-                if not GameFrame.dev_mode:
+                if self.settings.has_sound:
                     self.set_mouse_visible(False)
                     if self.main_menu_song is not None:
                         self.main_menu_song.pause()
@@ -121,7 +121,7 @@ class SpaceWindow(GameFrame):
                 self.set_mouse_visible(False)
                 self.cooldown = self.COOLDOWN
             elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
-                if not self.main_menu_song:
+                if self.settings.has_sound and self.main_menu_song is None:
                     self.play_main_menu_music()
                 self.is_counting = False
                 self.alpha = 255
@@ -449,8 +449,8 @@ class SpaceWindow(GameFrame):
         self.score_lbl.draw()
 
     def play_main_menu_music(self):
-        self.main_menu_song = pyglet.media.load("audio/space_clones.mp3", streaming=False).play()
-        self.sound_players.append(self.main_menu_song)
+        if self.main_menu_song is None:
+            self.main_menu_song = self.play_sound("space_clones.mp3")
 
     def get_options(self):
         return {"CONTROLS": ["DEFAULT", ], "SOUND": {"ON", "OFF"}}

@@ -47,7 +47,6 @@ class GameFrame(Window):
         self.max_cooldown = 0
         self.cooldown = self.max_cooldown
         self.settings = GameSettings(self, not GameFrame.dev_mode)
-        self.sound_players = []
         if not GameFrame.dev_mode:
             self.change_scene(self.Scene.MAIN_MENU)
             self.set_fullscreen(True)
@@ -222,13 +221,17 @@ class GameFrame(Window):
     def play_sound(self, sound_name: str):
         if self.settings.has_sound:
             src = pyglet.media.load("audio/" + sound_name)
-            # src.volume = 1 if self.settings.has_sound else 0
-            self.sound_players.append(src)
-            src.play()
+            return src.play()
 
-    def set_sound_volume(self, vol):
-        for player in self.sound_players:
-            player.volume = vol
+    def set_sound_on(self, has_sound):
+        if has_sound:
+            if self.main_menu_song is None:
+                self.play_main_menu_music()
+        else:
+            if self.main_menu_song is not None:
+                self.main_menu_song.pause()
+                self.main_menu_song.delete()
+                self.main_menu_song = None
 
     def to_screen_x(self, mod_x):
         return self.main_width * mod_x // self.model.MODEL_WIDTH
@@ -268,6 +271,9 @@ class GameFrame(Window):
 
     def get_font(self):
         raise NotImplementedError
+
+    def play_main_menu_music(self):
+        raise  NotImplementedError
 
 
 class GameButton:
@@ -328,7 +334,7 @@ class GameSettings:
 
     def set_sound(self, has_sound):
         self.has_sound = has_sound
-        self.frame.set_sound_volume(1 if has_sound else 0)
+        self.frame.set_sound_on(has_sound)
 
 
 class KeyScheme:
