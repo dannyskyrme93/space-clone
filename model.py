@@ -59,8 +59,29 @@ class GameObject:
         self.dx = 0
         self.dy = 0
         self.is_active = True
+
+
+class Player(GameObject):
+    def __init__(self, x, y, width, height, img_name):
+        super().__init__(x, y, width, height, img_name)
         self.is_blown = False
         self.is_double_blown = False
+
+
+class Box(GameObject):
+    class BoxType(enum.Enum):
+        SHOOT_FAST = 1
+
+    def __init__(self, x, y, width, height, img_name, box_type):
+        super().__init__(x, y, width, height, img_name)
+        self.dy = -3
+        self.box_type = box_type
+
+
+class Alien(GameObject):
+    def __init__(self, x, y, width, height, img_name):
+        super().__init__(x, y, width, height, img_name)
+        self.dx = 1
 
 
 change_dict = {'points': 0, 'lives': 3, 'tick_speed': 60, 'alien_shoot_rate': 56}
@@ -98,8 +119,8 @@ class Model(GameModel):
         self.boxes = []
         self.events = []
         self.objects = []  # list of Game Objects, will automatically draw on screen
-        self.player = GameObject(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
-                                 self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
+        self.player = Player(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
+                             self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
         self.player_lives = 3
         print(self.player.__dict__)
 
@@ -135,9 +156,6 @@ class Model(GameModel):
     def get_game_events(self):
         return self.events
 
-    def power_box_spawn(self):
-        pass
-
     def alien_shoot(self, mob):
         if rando() <= 0.05 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
             self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
@@ -171,7 +189,7 @@ class Model(GameModel):
                 self.alien_movement_update(-Model.MODEL_WIDTH / 40, 0)
 
     def hitbox_check(self, hitter, hitee):
-        if hitter in self.objects and hitee == self.player:
+        if hitter in self.objects or hitter in self.boxes and hitee == self.player:
             point_list = ((hitter.x, hitter.y), (hitter.x + hitter.width, hitter.y),
                           (hitter.x, hitter.y + hitter.height),
                           (hitter.x + hitter.width, hitter.y + hitter.height))
@@ -227,6 +245,8 @@ class Model(GameModel):
     def alien_death_check(self, bullet):
         for mob in self.objects[:]:
             if self.hitbox_check(bullet, mob):
+                if rando() < 1:
+                    self.power_box_spawn(mob)
                 self.events.append(GameEvent(GameEvent.EventType.ALIEN_DEATH,
                                              (bullet[0], bullet[1] + self.bullet_height), args=[100]))
                 self.points += 100
@@ -242,8 +262,9 @@ class Model(GameModel):
                     if self.input:
                         self.player.is_active = False
                         if self.aliens == 1:
-                            print("Unlucky bro.")
-                        self.aliens = "/"
+                            self.aliens = "Unluck"
+                        else:
+                            self.aliens = "/"
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
                     self.key_neutraliser()
@@ -292,8 +313,22 @@ class Model(GameModel):
 
             self.alien_death_check(bullet)
 
-    def box_update(self):
-        pass
+    def power_box_update(self):
+        for box in self.boxes:
+            self.update_position(box, box.dx, box.dy)
+
+            if box.x <= 0:
+                self.boxes.remove(box)
+
+            if self.hitbox_check(box, self.player):
+                self.boxes.remove(box)
+                pass
+                # Player power up
+
+    def power_box_spawn(self, mob):
+        self.boxes.append(Box(mob.x + mob.width * 0.25, mob.y + mob.height * 0.25, mob.width * 0.5, mob.height * 0.5,
+                              "tom hanks.jpg", Box.BoxType.SHOOT_FAST))
+        print(self.boxes)
 
     def update_position(self, piece, dx, dy):
         piece.dx = dx
@@ -335,6 +370,7 @@ class Model(GameModel):
         self.player_speed_trunc()
         self.player_edge_check()
         self.update_position(self.player, self.player.dx, self.player.dy)
+        self.power_box_update()
         self.bullet_update()
         self.alien_bullet_update()
         self.timekeeper()
@@ -440,8 +476,3 @@ class Model(GameModel):
                     if not self.controller_logic('release'):
                         self.player.dx += (1 if self.player.dx < 0 else -1) * Model.PLAYER_SPEED
 
-
-class Alien(GameObject):
-    def __init__(self, x, y, width, height, img_name):
-        super().__init__(x, y, width, height, img_name)
-        self.dx = 1
