@@ -8,6 +8,7 @@ import numpy as np
 from frame import GameFrame, GameButton
 from functools import partial
 from enum import Enum
+from abc import ABC, abstractmethod
 
 KEY_PRESS, KEY_RELEASE = 0, 1
 
@@ -108,12 +109,9 @@ class SpaceWindow(GameFrame):
                 self.is_counting = False
                 self.alpha = 0
                 self.cooldown = self.COOLDOWN
+                self.stop_music()
                 if self.settings.has_sound:
                     self.set_mouse_visible(False)
-                    if self.main_menu_song is not None:
-                        self.main_menu_song.pause()
-                        self.main_menu_song.delete()
-                        self.main_menu_song = None
                 if not self.model:
                     self.set_model()
             elif scene == self.Scene.MAIN_TO_PLAYING:
@@ -456,7 +454,19 @@ class SpaceWindow(GameFrame):
         return {"CONTROLS": ["DEFAULT", ], "SOUND": {"ON", "OFF"}}
 
 
-class PixelSpillBlock:
+class AnimatedObject(ABC):
+    def __init__(self, x, y, vect=(0, 0), colour=None):
+        self.x = x
+        self.y = y
+        self.vect = vect
+        self.is_vanished = False
+        self.colour = colour
+
+    @abstractmethod
+    def update(self):
+        pass
+
+class PixelSpillBlock(AnimatedObject):
     DEF_COLOUR = (255, 255, 255)
     BLOOD_COLOUR = (102, 0, 0)
     FLAME_COLOURS = [(255, 91, 20),
@@ -464,18 +474,14 @@ class PixelSpillBlock:
                      (255, 162, 85)]
     MAX_SPEED = 2
     SIZE_DECAY: float = 0.2
-    TICK_RATE = 2
+    TICK_RATE = 1
     DEF_SIZE = 8
 
     def __init__(self, x, y, vect, colour=None, speed=1, size=1):
+        super().__init__(x, y, vect, (self.DEF_COLOUR if colour is None else colour))
         self.speed = self.MAX_SPEED * speed
-        self.x = x
-        self.y = y
-        self.vect = vect
         self.size = self.DEF_SIZE
         self.dx = 1
-        self.is_vanished = False
-        self.colour = (self.DEF_COLOUR if colour is None else colour)
         self.size = PixelSpillBlock.DEF_SIZE + size
 
     def update(self, dt):
@@ -492,15 +498,13 @@ class PixelSpillBlock:
         return {"CONTROLS": ["QW"], "SOUND": ["ON", "OFF"]}
 
 
-class FadingPoints:
+class FadingPoints(AnimatedObject):
     FADE_DECAY = 0.95
 
-    def __init__(self, txt, x, y):
-        self.txt = txt
-        self.x = x
-        self.y = y
+    def __init__(self, txt, x, y, colour=None):
+        super().__init__(x, y, [0, 0], colour)
         self.alpha = 255
-        self.is_vanished = False
+        self.txt = txt
 
     def update(self):
         if self.alpha <= 20:
@@ -509,7 +513,7 @@ class FadingPoints:
             self.alpha = int(self.alpha * self.FADE_DECAY)
 
 
-class FallingBlock:
+class FallingBlock(AnimatedObject):
     DEF_COLOUR = (255, 255, 255)
     BLOOD_COLOUR = (102, 0, 0)
     FLAME_COLOURS = [(255, 91, 20),
@@ -522,22 +526,19 @@ class FallingBlock:
     GRAVITY_CONST = 1
 
     def __init__(self, x, y, upward_speed, colour=None, size=20):
-        self.x = x
-        self.y = y
+        v = [random.randint(-upward_speed // 8, upward_speed // 8), random.random() * upward_speed]
+        super().__init__(x, y, v, (self.DEF_COLOUR if colour is None else colour))
         self.size = size
-        self.dy = random.random() * upward_speed
-        self.dx = random.randint(-upward_speed // 8, upward_speed // 8)
         self.is_vanished = False
-        self.colour = (self.DEF_COLOUR if colour is None else colour)
 
     def update(self, dt):
         if dt % self.TICK_RATE != 0:
             return
         if self.y < 0:
             self.is_vanished = True
-        self.y += self.dy
-        self.dy -= self.GRAVITY_CONST
-        self.x += self.dx
+        self.y += self.vect[1]
+        self.vect[1] -= self.GRAVITY_CONST
+        self.x += self.vect[0]
 
 
 if __name__ == '__main__':

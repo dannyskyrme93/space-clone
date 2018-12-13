@@ -36,12 +36,14 @@ class GameFrame(Window):
 
     def __init__(self, dev_mode=False):
         self.model = None
-        self.to_clear = False
         GameFrame.dev_mode = dev_mode
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)
+        self.line_width = 4
+        pyglet.gl.glLineWidth(4)
         self.main_menu_song = None
         icon = pyglet.image.load('img/x-wing_icon.png')
         self.set_icon(icon)
+        self.close_btn = None
         self.set_btns()
         self.scene = None
         self.max_cooldown = 0
@@ -54,7 +56,6 @@ class GameFrame(Window):
             ratio = self.header_height / self.main_height
             self.header_height = math.floor(self.height * ratio)
             self.main_height = math.floor(self.height * (1 - ratio))
-            self.sound_base = {}
         else:
             self.set_model()
             self.change_scene(self.Scene.PLAYING)
@@ -100,6 +101,7 @@ class GameFrame(Window):
             for btn in self.opt_btns:
                 if btn.is_on(x, y):
                     btn.click()
+                    break
 
     def draw_main_btns(self):
         for btn in self.main_btns:
@@ -154,19 +156,38 @@ class GameFrame(Window):
                                         anchor_x='center', anchor_y='center',
                                         color=(255, 255, 255, btn.get_alpha()))
             btn_lbl.draw()
+        btn = self.close_btn
         btn_width = self.height * GameFrame.MAIN_BTN_HEIGHT_PERCENT
+        x1, y1 = btn.x - btn.width // 2, btn.y - btn.height // 2
+        x2, y2 = btn.x - btn.width // 2, btn.y + btn.height // 2
+        x3, y3 = btn.x + btn.width // 2, btn.y + btn.height // 2
+        x4, y4 = btn.x + btn.width // 2, btn.y - btn.height // 2
+        graphics.draw(4, GL_QUADS, ['v2f', [x1, y1,
+                                            x2, y2,
+                                            x3, y3,
+                                            x4, y4]],
+                      ['c4B', tuple(btn.color)])
         origin_x = (self.OPT_ORIGIN_X_PERCENT + 0.025) * self.width
         origin_y = (self.OPT_ORIGIN_Y_PERCENT + 0.025) * self.height
         close_size = btn_width // 4
-        offset = 1
+        offset = 4
         close_origin_x, close_origin_y = origin_x + panel_width - 2.5 * close_size - close_size // 2, \
                                          origin_y + panel_height - 1.75 * close_size - close_size // 2
-        pyglet.graphics.draw(4, GL_LINES, ['v2f', [close_origin_x + offset, close_origin_y + offset,
-                                                   close_origin_x + close_size - offset,
-                                                   close_origin_y + close_size - offset,
-                                                   close_origin_x + offset, close_origin_y + close_size - offset,
-                                                   close_origin_x + close_size - offset, close_origin_y + offset]],
-                             ['c4B', 4 * [255, 255, 255, 100]])
+        pyglet.gl.glLineWidth(self.line_width // 2)
+        pyglet.graphics.draw(12, GL_LINES, ['v2f', [x1, y1,
+                                                    x2, y2,
+                                                    x2, y2,
+                                                    x3, y3,
+                                                    x3, y3,
+                                                    x4, y4,
+                                                    x4, y4,
+                                                    x1, y1,
+                                                    x1 + offset, y1 + offset,
+                                                    x3 - offset, y3 - offset,
+                                                    x2 + offset, y2 - offset,
+                                                    x4 - offset, y4 + offset]],
+                             ['c4B', 12 * [255, 255, 255, 255]])
+        pyglet.gl.glLineWidth(self.line_width)
 
     def set_btns(self):
         btn_width, btn_height = self.width * GameFrame.MAIN_BTN_WIDTH_PERCENT, \
@@ -194,7 +215,6 @@ class GameFrame(Window):
         padding_y = opt_btn_height // 4
         for i, k in enumerate(opt_contents):
             opt = k
-            parent_lbl = k
             y = 0.9 * (origin_y + panel_height) - i * (padding_y + btn_height)
 
             btn = GameButton(opt, origin_x + opt_btn_width // 2, y, opt_btn_width, opt_btn_height)
@@ -211,12 +231,11 @@ class GameFrame(Window):
         close_size = opt_btn_height // 2
         close_origin_x, close_origin_y = origin_x + panel_width - 2.5 * close_size, \
                                          origin_y + panel_height - 1.75 * close_size
-        options_close_btn = GameButton("", close_origin_x,
-                                       close_origin_y,
-                                       close_size, close_size, partial(self.change_scene,
-                                                                       self.Scene.MAIN_MENU))
-        options_close_btn.color = 4 * (179, 30, 60, 255)
-        self.opt_btns.append(options_close_btn)
+        self.close_btn = GameButton("", close_origin_x,
+                                    close_origin_y,
+                                    close_size, close_size, partial(self.change_scene, self.Scene.MAIN_MENU))
+        self.close_btn.color = 4 * (179, 30, 60, 255)
+        self.opt_btns.append(self.close_btn)
 
     def play_sound(self, sound_name: str):
         if self.settings.has_sound:
@@ -229,15 +248,19 @@ class GameFrame(Window):
                 self.play_main_menu_music()
         else:
             if self.main_menu_song is not None:
-                self.main_menu_song.pause()
-                self.main_menu_song.delete()
-                self.main_menu_song = None
+                self.stop_music()
 
     def to_screen_x(self, mod_x):
         return self.main_width * mod_x // self.model.MODEL_WIDTH
 
     def to_screen_y(self, mod_y):
         return self.main_height * mod_y // self.model.MODEL_HEIGHT
+
+    def stop_music(self):
+        if self.main_menu_song is not None:
+            self.main_menu_song.pause()
+            self.main_menu_song.delete()
+            self.main_menu_song = None
 
     def set_font(self):
         raise NotImplementedError
@@ -273,7 +296,7 @@ class GameFrame(Window):
         raise NotImplementedError
 
     def play_main_menu_music(self):
-        raise  NotImplementedError
+        raise NotImplementedError
 
 
 class GameButton:
@@ -355,7 +378,6 @@ class KeyScheme:
             self.scheme = {key.Q: KeyScheme.Actions.MOVE_LEFT,
                            key.W: KeyScheme.Actions.MOVE_RIGHT,
                            key.P: KeyScheme.Actions.PAUSE}
-
 
 # if __name__ == '__main__':
 #     g = GameFrame()
