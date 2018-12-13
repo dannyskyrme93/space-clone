@@ -255,6 +255,7 @@ class Model(GameModel):
                 if Model.PLAYER_LIVES == 0:  # TODO temp while player lives not implemented
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
                     self.game_over = True
+                    Model.PLAYER_LIVES = 2
                 else:
                     self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
