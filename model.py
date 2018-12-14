@@ -61,6 +61,10 @@ class GameObject:
         self.is_active = True
 
 
+class Projectile(enum.Enum):
+    pass
+
+
 class Player(GameObject):
     def __init__(self, x, y, width, height, img_name):
         super().__init__(x, y, width, height, img_name)
@@ -100,6 +104,8 @@ class Model(GameModel):
         self.points = 0
         self.game_over = False
         self.tick = 1
+        self.power_box_spawn_chance = 1
+        self.alien_shoot_chance = 0.05
         self.tick_speed = 60
         self.time = None
         self.ALIEN_MOVE_RIGHT = True
@@ -157,7 +163,7 @@ class Model(GameModel):
         return self.events
 
     def alien_shoot(self, mob):
-        if rando() <= 0.05 and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+        if rando() <= self.alien_shoot_chance and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
             self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
             self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
@@ -245,13 +251,13 @@ class Model(GameModel):
     def alien_death_check(self, bullet):
         for mob in self.objects[:]:
             if self.hitbox_check(bullet, mob):
-                if rando() < 1:
+                if rando() < self.power_box_spawn_chance:
                     self.power_box_spawn(mob)
                 self.events.append(GameEvent(GameEvent.EventType.ALIEN_DEATH,
                                              (bullet[0], bullet[1] + self.bullet_height), args=[100]))
                 self.points += 100
                 self.objects.remove(mob)
-                if type(self.aliens) == int:
+                if not self.player.is_double_blown:
                     self.aliens -= 1
                 self.bullets.remove(bullet)
 
@@ -290,7 +296,7 @@ class Model(GameModel):
                 self.alien_shoot(mob)
             if mob.y + mob.height < 0:
                 self.objects.remove(mob)
-                if type(self.aliens) == int:
+                if not self.player.is_double_blown:
                     self.aliens -= 1
             self.update_position(mob, 0, -Model.MODEL_HEIGHT / 20)
 
@@ -322,19 +328,40 @@ class Model(GameModel):
 
             if self.hitbox_check(box, self.player):
                 self.boxes.remove(box)
-                pass
-                # Player power up
+                pass  # Player power up
 
     def power_box_spawn(self, mob):
         self.boxes.append(Box(mob.x + mob.width * 0.25, mob.y + mob.height * 0.25, mob.width * 0.5, mob.height * 0.5,
                               "tom hanks.jpg", Box.BoxType.SHOOT_FAST))
-        print(self.boxes)
 
-    def update_position(self, piece, dx, dy):
-        piece.dx = dx
-        piece.dy = dy
-        piece.x += dx
-        piece.y += dy
+    def update_position(self, obj, dx, dy):
+        obj.dx = dx
+        obj.dy = dy
+        obj.x += dx
+        obj.y += dy
+
+    def position_update_central(self):
+        self.player_speed_trunc()
+        self.player_edge_check()
+        self.update_position(self.player, self.player.dx, self.player.dy)
+        self.power_box_update()
+        self.bullet_update()
+        self.alien_bullet_update()
+        self.timekeeper()
+
+    def update(self, dt):
+        self.player_death_check()
+        self.screen_change(dt)
+
+        if self.tick % self.tick_speed == 0:
+            self.tick = 0
+            if not self.player.is_blown:
+                self.alien_update()
+            elif not self.player.is_double_blown and self.aliens > 0 and self.player.is_active:
+                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
+                self.alien_ending(rand=True)
+
+        self.position_update_central()
 
     def timekeeper(self):
         if not self.q_countdown <= 0:
@@ -354,26 +381,6 @@ class Model(GameModel):
         else:
             self.time -= dt
             return True
-
-    def update(self, dt):
-        self.player_death_check()
-        self.screen_change(dt)
-
-        if self.tick % self.tick_speed == 0:
-            self.tick = 0
-            if not self.player.is_blown:
-                self.alien_update()
-            elif type(self.aliens) == int and self.aliens > 0 and self.player.is_active:
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
-                self.alien_ending(rand=True)
-
-        self.player_speed_trunc()
-        self.player_edge_check()
-        self.update_position(self.player, self.player.dx, self.player.dy)
-        self.power_box_update()
-        self.bullet_update()
-        self.alien_bullet_update()
-        self.timekeeper()
 
     def reset(self):
         pass
