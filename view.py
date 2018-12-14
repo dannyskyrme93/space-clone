@@ -24,6 +24,7 @@ class SpaceWindow(GameFrame):
         MAIN_MENU_WITH_OPTIONS = 6
         RESTART = 7
         DEV_RESET = 8
+        PAUSED = 9
 
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
@@ -67,6 +68,13 @@ class SpaceWindow(GameFrame):
                     self.settings.has_sound = False
             elif btn.lbl.upper() == "DEFAULT" and btn.btn_group.parent == "CONTROLS":
                 btn.click()
+        for btn in self.pause_btns:
+            if btn.lbl == "CONTINUE":
+                btn.func = partial(self.change_scene, self.Scene.PLAYING)
+            elif btn.lbl == "RETRY":
+                btn.func = partial(self.change_scene, self.Scene.RESTART)
+            if btn.lbl == "EXIT":
+                btn.func = partial(self.change_scene, self.Scene.MAIN_MENU)
         self.reset_flame_colours()
         self.is_counting = False
 
@@ -103,6 +111,7 @@ class SpaceWindow(GameFrame):
     def change_scene(self, scene):
         if not self.scene or self.scene != scene:
             if scene == self.Scene.PLAYING:
+                self.set_mouse_visible(False)
                 self.pixel_spills = []
                 self.falling_parts = []
                 self.pts = []
@@ -115,18 +124,21 @@ class SpaceWindow(GameFrame):
                 if not self.model:
                     self.set_model()
             elif scene == self.Scene.MAIN_TO_PLAYING:
-                self.is_counting = True
                 self.set_mouse_visible(False)
+                self.is_counting = True
                 self.cooldown = self.COOLDOWN
             elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
+                self.set_mouse_visible(True)
                 if self.settings.has_sound and self.main_menu_song is None:
                     self.play_main_menu_music()
                 self.is_counting = False
                 self.alpha = 255
-                self.set_mouse_visible(True)
             elif scene == self.Scene.NEXT_LEVEL or scene == self.Scene.RESTART:
+                self.set_mouse_visible(False)
                 self.is_counting = True
                 self.cooldown = self.COOLDOWN
+            elif scene == self.Scene.PAUSED:
+                self.set_mouse_visible(True)
             elif scene == self.Scene.CLOSING:
                 sys.exit()
             print("Screen scene: change: ", self.scene, "->", scene)
@@ -224,11 +236,11 @@ class SpaceWindow(GameFrame):
 
     def draw_game_screen(self):
         self.tick += 1
-        if self.scene in (self.Scene.PLAYING, self.Scene.GAME_OVER):
+        if self.scene in (self.Scene.PLAYING, self.Scene.GAME_OVER, self.Scene.PAUSED):
             self.clear()
             self.draw_stars()
             self.draw_lasers()
-            if self.scene == self.Scene.PLAYING:
+            if self.scene == self.Scene.PLAYING or self.scene == self.Scene.PAUSED :
                 self.draw_sprite_objs()
             self.draw_pixel_spills()
             self.draw_falling_parts()
@@ -237,6 +249,8 @@ class SpaceWindow(GameFrame):
             if self.scene == self.Scene.GAME_OVER:
                 lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
                 self.draw_display_txt(lines, 3 * [self.small_txt_size])
+            elif self.scene == self.Scene.PAUSED:
+                self.draw_pause_menu()
             if GameFrame.dev_mode:
                 self.fps_display.draw()
         elif self.scene == self.Scene.MAIN_TO_PLAYING:
@@ -453,6 +467,9 @@ class SpaceWindow(GameFrame):
     def get_options(self):
         return {"CONTROLS": ["DEFAULT", ], "SOUND": {"ON", "OFF"}}
 
+    def get_pause_options(self):
+        return ["CONTINUE", "RETRY", "EXIT"]
+
 
 class AnimatedObject(ABC):
     def __init__(self, x, y, vect=(0, 0), colour=None):
@@ -465,6 +482,7 @@ class AnimatedObject(ABC):
     @abstractmethod
     def update(self):
         pass
+
 
 class PixelSpillBlock(AnimatedObject):
     DEF_COLOUR = (255, 255, 255)
@@ -493,9 +511,6 @@ class PixelSpillBlock(AnimatedObject):
         if self.size <= 0:
             self.is_vanished = True
             self.size = 0
-
-    def get_options(self):
-        return {"CONTROLS": ["QW"], "SOUND": ["ON", "OFF"]}
 
 
 class FadingPoints(AnimatedObject):
