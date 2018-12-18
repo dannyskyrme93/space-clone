@@ -18,6 +18,7 @@ class GameFrame(Window):
         MAIN_MENU = 1
         CLOSING = 2
         MAIN_MENU_WITH_OPTIONS = 3
+        PAUSED = 4
 
     class KeyAction(Enum):
         KEY_PRESS, KEY_RELEASE = 0, 1
@@ -74,11 +75,16 @@ class GameFrame(Window):
     def on_key_release(self, symbol, modifiers):
         if symbol == key.ESCAPE:
             sys.exit()
+        elif symbol == key.P:
+            if self.scene == self.Scene.PLAYING:
+                self.change_scene(self.Scene.PAUSED)
+            elif self.scene == self.Scene.PAUSED:
+                self.change_scene(self.Scene.PAUSED)
         elif self.scene not in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.model.action(symbol, KEY_RELEASE)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if button == mouse.LEFT and self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
+        if button == mouse.LEFT and self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS, self.Scene.PAUSED}:
             self.menu_mouse_action(x, y)
 
     def on_draw(self):
@@ -99,6 +105,12 @@ class GameFrame(Window):
         elif self.scene == self.Scene.MAIN_MENU_WITH_OPTIONS:
             # TODO this is temp
             for btn in self.opt_btns:
+                if btn.is_on(x, y):
+                    btn.click()
+                    break
+        elif self.scene == self.Scene.PAUSED:
+            # TODO this is temp
+            for btn in self.pause_btns:
                 if btn.is_on(x, y):
                     btn.click()
                     break
@@ -189,9 +201,30 @@ class GameFrame(Window):
                              ['c4B', 12 * [255, 255, 255, 255]])
         pyglet.gl.glLineWidth(self.line_width)
 
+    def draw_pause_menu(self):
+        for btn in self.pause_btns:
+            graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
+                                                btn.x - btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y + btn.height // 2,
+                                                btn.x + btn.width // 2, btn.y - btn.height // 2]],
+                          ['c4B', tuple(btn.color)])
+            btn_lbl = pyglet.text.Label(btn.lbl,
+                                        font_name='8Bit Wonder',
+                                        font_size=0.3 * btn.height,
+                                        width=btn.width, height=0.5 * btn.height,
+                                        x=btn.x, y=btn.y,
+                                        anchor_x='center', anchor_y='center',
+                                        color=(255, 255, 255, btn.get_alpha()))
+            btn_lbl.draw()
+
     def set_btns(self):
         btn_width, btn_height = self.width * GameFrame.MAIN_BTN_WIDTH_PERCENT, \
                                 self.height * GameFrame.MAIN_BTN_HEIGHT_PERCENT
+        self.set_menu_btns(btn_width, btn_height)
+        self.set_options_btns(btn_width, btn_height)
+        self.set_pause_btns(btn_width, btn_height)
+
+    def set_menu_btns(self, btn_width, btn_height):
         main_lbls = self.get_btn_labels()
         self.main_btns = [
             GameButton(main_lbls[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
@@ -199,6 +232,7 @@ class GameFrame(Window):
                        partial(self.change_scene, self.main_scenes[y]))
             for y in range(0, len(GameFrame.MENU))]
 
+    def set_options_btns(self, btn_width, btn_height):
         self.opt_btns = []
         opt_contents = self.get_options()
         dark = [c - 80 for c in GameButton.DEF_COLOR]
@@ -236,6 +270,14 @@ class GameFrame(Window):
                                     close_size, close_size, partial(self.change_scene, self.Scene.MAIN_MENU))
         self.close_btn.color = 4 * (179, 30, 60, 255)
         self.opt_btns.append(self.close_btn)
+
+    def set_pause_btns(self, btn_width, btn_height):
+        main_lbls = self.get_pause_options()
+        self.pause_btns = [
+            GameButton(main_lbls[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
+                       y * self.height * GameFrame.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
+                       None)
+            for y in range(0, len(main_lbls))]
 
     def play_sound(self, sound_name: str):
         if self.settings.has_sound:
@@ -278,6 +320,9 @@ class GameFrame(Window):
         raise NotImplementedError
 
     def get_options(self):
+        raise NotImplementedError
+
+    def get_pause_options(self):
         raise NotImplementedError
 
     def get_btn_labels(self):
