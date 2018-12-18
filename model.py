@@ -92,9 +92,10 @@ class Model(GameModel):
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
-        self.overheat_constant = 30
+        self.overheat_constant = 100
         self.overheat_variable_e = 2
         self.overheat_variable_q = 2
+        self.overheat_base = 2
         self.q_jam = False
         self.e_jam = False
         self.keys_pressed = 0
@@ -105,12 +106,15 @@ class Model(GameModel):
                                  self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
         self.player_lives = 3
 
-        overheat, i = self.overheat_variable_q, 1
+        overheat, i = self.overheat_base, 1
         first = [self.overheat_constant / overheat for overheat in range(overheat, self.bullet_max + overheat)]
         while 1 <= i < len(first):
             first[i] += first[i - 1]
             i += 1
         self.heat_phases = [i + self.countdown for i in first]
+        self.q_heat_phase = 0
+        self.e_heat_phase = 0
+        print(self.heat_phases)
 
         alien_number = 0
         alien_rows = 0
@@ -376,9 +380,14 @@ class Model(GameModel):
     def overheat_variable_logic(self):
         i = 0
         while i < len(self.heat_phases) - 1:
-            if self.heat_phases[i] < self.q_countdown < self.heat_phases[i+1]:
-                self.overheat_variable_q = i + 2
-                print(f'heat phase changed to {i}')
+            if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i+1]:
+                self.overheat_variable_q = i + self.overheat_base
+                self.q_heat_phase = i
+                print(f'heat phase changed to {i}', self.q_countdown)
+            if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i+1]:
+                self.overheat_variable_e = i + self.overheat_base
+                self.e_heat_phase = i
+                print(f'heat phase changed to {i}', self.e_countdown)
             i += 1
 
 
@@ -408,25 +417,24 @@ class Model(GameModel):
                 elif key_val == key.Q:
                     print("Wow! The Q has been pressed")
                     if self.q_jam:
-                        print(self.q_countdown)
+                        print('jammin')
                         if self.q_countdown <= 0:
                             self.q_jam = False
-                            self.overheat_variable_q = 2
-                    elif self.q_countdown > 0:
 
-                        if self.overheat_variable_q == 2:
+                    elif self.q_countdown > 0:
+                        if self.overheat_variable_q == self.overheat_base:
                             self.q_countdown += self.countdown + self.overheat_constant / self.overheat_variable_q
                         else:
                             self.q_countdown += self.overheat_constant / self.overheat_variable_q
 
                         self.overheat_variable_q += 1
-                        if self.overheat_variable_q >= 2 + self.bullet_max:
+                        if self.overheat_variable_q >= self.overheat_base + self.bullet_max:
                             self.q_jam = True
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
 
                     else:
-                        print('Success')
+                        print('q_success')
                         self.q_countdown = self.countdown
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
@@ -435,18 +443,22 @@ class Model(GameModel):
                     print("Wow! The E has been pressed")
                     if self.e_jam:
                         if self.e_countdown <= 0:
+                            print("unjammed", self.e_countdown)
                             self.e_jam = False
-                            self.overheat_variable_e = 2
                     elif self.e_countdown > 0:
-                        self.e_countdown += self.countdown + self.overheat_constant / self.overheat_variable_e
+                        if self.overheat_variable_e == self.overheat_base:
+                            self.e_countdown += self.countdown + self.overheat_constant / self.overheat_variable_e
+                        else:
+                            self.e_countdown += self.overheat_constant / self.overheat_variable_e
+
                         self.overheat_variable_e += 1
-                        if self.overheat_variable_e >= 2 + self.bullet_max:
+                        if self.overheat_variable_e >= self.overheat_base + self.bullet_max:
                             self.e_jam = True
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
 
                     else:
-                        print('success')
+                        print('e_success')
                         self.e_countdown = self.countdown
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
