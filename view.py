@@ -77,6 +77,7 @@ class SpaceWindow(GameFrame):
                 btn.func = partial(self.change_scene, self.Scene.MAIN_MENU)
         self.reset_flame_colours()
         self.is_counting = False
+        self.settings.set_sound(True)
 
     def trigger_events(self):
         events = self.model.get_game_events()
@@ -111,7 +112,7 @@ class SpaceWindow(GameFrame):
     def change_scene(self, scene):
         if not self.scene or self.scene != scene:
             if scene == self.Scene.PLAYING:
-                self.set_mouse_visible(False)
+                self.set_mouse_visible(True if GameFrame.dev_mode else False)
                 self.pixel_spills = []
                 self.falling_parts = []
                 self.pts = []
@@ -124,9 +125,10 @@ class SpaceWindow(GameFrame):
                 if not self.model:
                     self.set_model()
             elif scene == self.Scene.MAIN_TO_PLAYING:
-                self.set_mouse_visible(False)
+                self.set_mouse_visible(True if GameFrame.dev_mode else False)
                 self.is_counting = True
                 self.cooldown = self.COOLDOWN
+                self.model = Model()
             elif scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
                 self.set_mouse_visible(True)
                 if self.settings.has_sound and self.main_menu_song is None:
@@ -228,11 +230,14 @@ class SpaceWindow(GameFrame):
 
     def reset_flame_colours(self):
         self.flame_colours = []
-        variation_blue = 255
+        variation_blue = 100
         for i in range(0, 2):
             blue_val_1 = 255 - random.randint(0, variation_blue)
             blue_val_2 = 255 - random.randint(0, variation_blue)
-            self.flame_colours.append(tuple([255, 255, 255, 0, 0, blue_val_1, 0, 0, blue_val_2, 255, 255, 255]))
+            self.flame_colours.append(tuple([255, 255, 255, 255,
+                                             0, 0, blue_val_1, 50,
+                                             0, 0, blue_val_2, 50,
+                                             255, 255, 255, 255]))
 
     def draw_game_screen(self):
         self.tick += 1
@@ -240,7 +245,7 @@ class SpaceWindow(GameFrame):
             self.clear()
             self.draw_stars()
             self.draw_lasers()
-            if self.scene == self.Scene.PLAYING or self.scene == self.Scene.PAUSED :
+            if self.scene == self.Scene.PLAYING or self.scene == self.Scene.PAUSED:
                 self.draw_sprite_objs()
             self.draw_pixel_spills()
             self.draw_falling_parts()
@@ -285,6 +290,8 @@ class SpaceWindow(GameFrame):
         self.rendered_sprite = []
         ship = self.model.player
         if ship.is_active:
+            self.draw_illumination(self.to_screen_x(ship.x + ship.width // 2),
+            self.to_screen_y(ship.y), 100, [255, 255, 255])
             player_batch = Batch()
             player_sprite = self.get_rendered_sprite(ship, player_batch)
             self.rendered_sprite.append(player_sprite)
@@ -402,20 +409,24 @@ class SpaceWindow(GameFrame):
             flame_batch.add(4, GL_QUADS, None,
                             ('v2f', [src_x1, y, src_x1 + flame_width_reduct, y - flame_height,
                                      src_x2 - flame_width_reduct, y - flame_height, src_x2, y]),
-                            ('c3B', self.flame_colours[i]))
+                            ('c4B', self.flame_colours[i]))
         flame_batch.draw()
 
     def draw_lasers(self):
-        colors = (0, 200, 255, 0, 200, 255)
+        inner_colors = (0, 200, 255, 0, 200, 255)
+        radius = 5 * SpaceWindow.BULLET_RADIUS_PERCENT * self.width
         for bullet in self.model.bullets:
+            self.draw_illumination(self.to_screen_x(bullet[0]), self.to_screen_y(bullet[1]), radius, inner_colors[:3])
             graphics.draw(2, GL_LINES,
                           ('v2f', [self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1]),
                                    self.to_screen_x(bullet[0]),
                                    self.to_screen_y(bullet[1] + int(self.BULLET_HEIGHT_PERCENT * self.main_height))]),
-                          ('c3B', colors))
+                          ('c3B', inner_colors))
         radius = SpaceWindow.BULLET_RADIUS_PERCENT * self.width
         for x, y in self.model.alien_bullets:
+            purple = [255, 0, 255]
+            self.draw_illumination(self.to_screen_x(x), self.to_screen_y(y), 6 * radius, purple)
             circ_pts = [self.to_screen_x(x), self.to_screen_y(y) + radius]
             for theta in np.linspace(0, 2 * math.pi, 40):
                 error = random.randint(-1 * radius // 4, radius // 4)
@@ -423,10 +434,24 @@ class SpaceWindow(GameFrame):
                                  circ_pts[1] + (radius + error) * math.cos(theta)])
             num_of_vert = (len(circ_pts) // 2)
             colors = [255, 255, 255]
-            colors.extend((num_of_vert - 1) * [255, 0, 255])
+            colors.extend((num_of_vert - 1) * purple)
             graphics.draw(num_of_vert, GL_TRIANGLE_FAN,
                           ('v2f', circ_pts),
                           ('c3B', colors))
+
+    def draw_illumination(self, x, y, radius, colors):
+        circ_pts = [x, y + self.height * self.BULLET_HEIGHT_PERCENT // 2]
+        for theta in np.linspace(0, 2 * math.pi, 10):
+            error = 0
+            circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
+                             circ_pts[1] + (radius + error) * math.cos(theta)])
+        num_of_vert = (len(circ_pts) // 2)
+        snip = list(colors)
+        outer_colors = snip.copy()
+        outer_colors.append(80)
+        snip.append(0)
+        outer_colors.extend((num_of_vert - 1) * snip)
+        graphics.draw(num_of_vert, GL_TRIANGLE_FAN, ('v2f', circ_pts), ('c4B', outer_colors))
 
     def draw_header(self):
         complement = 255 - self.alpha
