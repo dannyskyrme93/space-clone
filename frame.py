@@ -79,7 +79,7 @@ class GameFrame(Window):
             if self.scene == self.Scene.PLAYING:
                 self.change_scene(self.Scene.PAUSED)
             elif self.scene == self.Scene.PAUSED:
-                self.change_scene(self.Scene.PAUSED)
+                self.change_scene(self.Scene.PLAYING)
         elif self.scene not in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
             self.model.action(symbol, KEY_RELEASE)
 
@@ -202,6 +202,15 @@ class GameFrame(Window):
         pyglet.gl.glLineWidth(self.line_width)
 
     def draw_pause_menu(self):
+        origin_x = self.width // 3
+        origin_y = self.height // 5
+        panel_width = self.width - 2 * origin_x
+        panel_height = self.height - 2 * origin_y
+        graphics.draw(4, GL_QUADS, ['v2f', [origin_x, origin_y,
+                                            origin_x, origin_y + panel_height,
+                                            origin_x + panel_width, origin_y + panel_height,
+                                            origin_x + panel_width, origin_y]],
+                      ['c4B', tuple(GameButton.DEF_COLOR)])
         for btn in self.pause_btns:
             graphics.draw(4, GL_QUADS, ['v2f', [btn.x - btn.width // 2, btn.y - btn.height // 2,
                                                 btn.x - btn.width // 2, btn.y + btn.height // 2,
@@ -273,16 +282,20 @@ class GameFrame(Window):
 
     def set_pause_btns(self, btn_width, btn_height):
         main_lbls = self.get_pause_options()
+        color = [c - 40 for c in GameButton.DEF_COLOR]
         self.pause_btns = [
             GameButton(main_lbls[y], self.width // 2, 0.8 * self.height - (y + 1) * btn_height -
                        y * self.height * GameFrame.MAIN_BTN_LBLS_PADDING_Y_PERCENT, btn_width, btn_height,
                        None)
             for y in range(0, len(main_lbls))]
+        for btn in self.pause_btns:
+            btn.color = color
 
-    def play_sound(self, sound_name: str):
+    def play_sound(self, sound_name: str, x=None):
         if self.settings.has_sound:
-            src = pyglet.media.load("audio/" + sound_name)
-            return src.play()
+            src: pyglet.media.Player = pyglet.media.StaticSource(pyglet.media.load("audio/" + sound_name))
+            to_rtn: pyglet.media.Player = src.play()
+            return to_rtn
 
     def set_sound_on(self, has_sound):
         if has_sound:
