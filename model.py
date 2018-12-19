@@ -360,6 +360,7 @@ class Model(GameModel):
         self.power_box_update()
         self.bullet_update()
         self.alien_bullet_update()
+        self.overheat_variable_logic()
         self.timekeeper()
 
     def update(self, dt):
@@ -394,26 +395,6 @@ class Model(GameModel):
         else:
             self.time -= dt
             return True
-
-    def update(self, dt):
-        self.player_death_check()
-        self.screen_change(dt)
-
-        if self.tick % self.tick_speed == 0:
-            self.tick = 0
-            if not self.player.is_blown:
-                self.alien_update()
-            elif type(self.aliens) == int and self.aliens > 0 and self.player.is_active:
-                self.events.append(GameEvent(GameEvent.EventType.EXPLOSION, self.player_center))
-                self.alien_ending(rand=True)
-
-        self.player_speed_trunc()
-        self.player_edge_check()
-        self.update_position(self.player, self.player.dx, self.player.dy)
-        self.bullet_update()
-        self.alien_bullet_update()
-        self.overheat_variable_logic()
-        self.timekeeper()
 
     def reset(self):
         pass
@@ -453,10 +434,7 @@ class Model(GameModel):
                 self.e_heat_phase = i
                 counter += 1
                 print(f'e_heat phase changed to {i}', self.e_countdown)
-            print(f"counter is at {counter}")
             i += 1
-        print("While loop broken")
-
 
     def action(self, key_val: str, action_type: int):
         import view, frame  # avoids circular imports
