@@ -379,16 +379,21 @@ class Model(GameModel):
 
     def overheat_variable_logic(self):
         i = 0
-        while i < len(self.heat_phases) - 1:
-            if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i+1]:
+        counter = 0
+        while i < len(self.heat_phases) - 1 and counter < 2:
+            if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i+1] and i != self.q_heat_phase:
                 self.overheat_variable_q = i + self.overheat_base
                 self.q_heat_phase = i
-                print(f'heat phase changed to {i}', self.q_countdown)
-            if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i+1]:
+                counter += 1
+                print(f'q_heat phase changed to {i}', self.q_countdown)
+            if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i+1] and i != self.e_heat_phase:
                 self.overheat_variable_e = i + self.overheat_base
                 self.e_heat_phase = i
-                print(f'heat phase changed to {i}', self.e_countdown)
+                counter += 1
+                print(f'e_heat phase changed to {i}', self.e_countdown)
+            print(f"counter is at {counter}")
             i += 1
+        print("While loop broken")
 
 
     def action(self, key_val: str, action_type: int):
@@ -419,6 +424,7 @@ class Model(GameModel):
                     if self.q_jam:
                         print('jammin')
                         if self.q_countdown <= 0:
+                            print("unjammed", self.q_countdown)
                             self.q_jam = False
 
                     elif self.q_countdown > 0:
