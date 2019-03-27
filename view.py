@@ -9,6 +9,7 @@ from frame import GameFrame, GameButton
 from functools import partial
 from enum import Enum
 from abc import ABC, abstractmethod
+from db_adapter import DataBaseAdapter
 
 KEY_PRESS, KEY_RELEASE = 0, 1
 
@@ -37,6 +38,7 @@ class SpaceWindow(GameFrame):
         super(SpaceWindow, self).__init__(dev_mode)
         pyglet.gl.glEnable(pyglet.gl.GL_BLEND)
         pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA, pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
+        self.player_glow_colour = [255, 255, 255]
         self.max_cooldown = SpaceWindow.COOLDOWN
         self.cooldown = self.max_cooldown
         self.menu_grad_motion = 0
@@ -72,12 +74,15 @@ class SpaceWindow(GameFrame):
             if btn.lbl == "CONTINUE":
                 btn.func = partial(self.change_scene, self.Scene.PLAYING)
             elif btn.lbl == "RETRY":
-                btn.func = partial(self.change_scene, self.Scene.RESTART)
+                btn.func = self.clear_pts_and_restart
             if btn.lbl == "EXIT":
                 btn.func = partial(self.change_scene, self.Scene.MAIN_MENU)
         self.reset_flame_colours()
         self.is_counting = False
-        self.settings.set_sound(True)
+        if dev_mode:
+            self.settings.set_sound(False)
+        else:
+            self.settings.set_sound(True)
 
     def trigger_events(self):
         events = self.model.get_game_events()
@@ -105,6 +110,12 @@ class SpaceWindow(GameFrame):
                 col = 4 * [80, 80, 80]
                 self.trigger_falling_parts(self.to_screen_x(ev.coordinates[0]),
                                            self.to_screen_y(ev.coordinates[1]), col, self.model.player.width)
+            elif ev.type == GameEvent.EventType.POWER_UP_COLLECT:
+                self.pt_lbls.append(FadingPoints('1000', self.to_screen_x(ev.coordinates[0]),
+                                                 self.to_screen_y(ev.coordinates[1])))
+                self.player_glow_colour = [0, 0, 255]
+            elif ev.type == GameEvent.EventType.GUN_JAM:
+                self.player_glow_colour = [255, 0, 255]
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             self.model.events = []
@@ -147,6 +158,10 @@ class SpaceWindow(GameFrame):
             self.scene = scene
 
     def update(self, dt):
+        for i in range(0, 3):
+            if self.player_glow_colour[i] < 255:
+                nxt = self.player_glow_colour[i] + 4
+                self.player_glow_colour[i] = min(255, nxt)
         if self.cooldown >= 0 and self.is_counting:
             self.cooldown -= 1
         if self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS}:
@@ -166,7 +181,7 @@ class SpaceWindow(GameFrame):
             self.trigger_events()
         elif self.scene == self.Scene.NEXT_LEVEL or self.scene == self.Scene.RESTART:
             if self.cooldown <= 0:
-                self.model = Model()
+                self.model = Model(self.model.points)
                 self.change_scene(self.Scene.PLAYING)
 
     def set_model(self):
@@ -190,7 +205,7 @@ class SpaceWindow(GameFrame):
 
     def trigger_pixel_spill(self, src_x, src_y, colours, circ_range_ratio, speed_ratio):
         start = 0
-        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=20):
+        for theta in np.linspace(start, start + circ_range_ratio * 2 * math.pi, num=15):
             ran_x = random.randint(0, 15)
             ran_y = random.randint(0, 15)
             self.pixel_spills.append(PixelSpillBlock(src_x + ran_x, src_y + ran_y, theta,
@@ -252,7 +267,7 @@ class SpaceWindow(GameFrame):
             self.draw_point_lbls()
             self.draw_header()
             if self.scene == self.Scene.GAME_OVER:
-                lines = ["You Lose Idiot", "R to Exit.", "Space to retry"]
+                lines = ["It's Game Over", "R to Exit.", "Space to retry"]
                 self.draw_display_txt(lines, 3 * [self.small_txt_size])
             elif self.scene == self.Scene.PAUSED:
                 self.draw_pause_menu()
@@ -291,7 +306,8 @@ class SpaceWindow(GameFrame):
         ship = self.model.player
         if ship.is_active:
             self.draw_illumination(self.to_screen_x(ship.x + ship.width // 2),
-            self.to_screen_y(ship.y), 100, [255, 255, 255])
+            self.to_screen_y(ship.y), 150 + (255 - self.player_glow_colour[0]) / 2,
+                                   [255, 0, 0] if self.model.player.is_blown else self.player_glow_colour)
             player_batch = Batch()
             player_sprite = self.get_rendered_sprite(ship, player_batch)
             self.rendered_sprite.append(player_sprite)
@@ -309,7 +325,7 @@ class SpaceWindow(GameFrame):
         sprite_batch.draw()
 
     def draw_display_txt(self, lines, font_sizes):
-        y_padding = self.main_width // 40
+        y_padding = self.main_width // 35
         origin_y = 0.6 * self.height
         y_add = 0
         txt_batch = Batch()
@@ -413,22 +429,23 @@ class SpaceWindow(GameFrame):
         flame_batch.draw()
 
     def draw_lasers(self):
+        batch = Batch()
         inner_colors = (0, 200, 255, 0, 200, 255)
-        radius = 5 * SpaceWindow.BULLET_RADIUS_PERCENT * self.width
+        radius = 3 * SpaceWindow.BULLET_RADIUS_PERCENT * self.width
         for bullet in self.model.bullets:
-            self.draw_illumination(self.to_screen_x(bullet[0]), self.to_screen_y(bullet[1]), radius, inner_colors[:3])
-            graphics.draw(2, GL_LINES,
-                          ('v2f', [self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1]),
-                                   self.to_screen_x(bullet[0]),
-                                   self.to_screen_y(bullet[1] + int(self.BULLET_HEIGHT_PERCENT * self.main_height))]),
-                          ('c3B', inner_colors))
+            # self.draw_illumination(self.to_screen_x(bullet[0]), self.to_screen_y(bullet[1]), radius, inner_colors[:3])
+            batch.add(2, GL_LINES, None,
+                      ('v2f', [self.to_screen_x(bullet[0]),
+                               self.to_screen_y(bullet[1]),
+                               self.to_screen_x(bullet[0]),
+                               self.to_screen_y(bullet[1] + int(self.BULLET_HEIGHT_PERCENT * self.main_height))]),
+                      ('c3B', inner_colors))
         radius = SpaceWindow.BULLET_RADIUS_PERCENT * self.width
+        purple = [255, 0, 255]
         for x, y in self.model.alien_bullets:
-            purple = [255, 0, 255]
             self.draw_illumination(self.to_screen_x(x), self.to_screen_y(y), 6 * radius, purple)
             circ_pts = [self.to_screen_x(x), self.to_screen_y(y) + radius]
-            for theta in np.linspace(0, 2 * math.pi, 40):
+            for theta in np.linspace(0, 2 * math.pi, 10):
                 error = random.randint(-1 * radius // 4, radius // 4)
                 circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
                                  circ_pts[1] + (radius + error) * math.cos(theta)])
@@ -438,10 +455,11 @@ class SpaceWindow(GameFrame):
             graphics.draw(num_of_vert, GL_TRIANGLE_FAN,
                           ('v2f', circ_pts),
                           ('c3B', colors))
+        batch.draw()
 
     def draw_illumination(self, x, y, radius, colors):
         circ_pts = [x, y + self.height * self.BULLET_HEIGHT_PERCENT // 2]
-        for theta in np.linspace(0, 2 * math.pi, 10):
+        for theta in np.linspace(0, 2 * math.pi, 5):
             error = 0
             circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
                              circ_pts[1] + (radius + error) * math.cos(theta)])
@@ -470,20 +488,28 @@ class SpaceWindow(GameFrame):
         header_batch.draw()
         self.enemies_lbl = pyglet.text.Label("Enemies Remaining: " + ("" if not self.model else str(self.model.aliens)),
                                              font_name='8Bit Wonder',
-                                             font_size=self.main_width // 60,
+                                             font_size=self.main_width // 65,
                                              width=self.main_width, height=self.header_height,
-                                             x=self.main_width // 40, y=self.main_height + self.header_height,
+                                             x=self.main_width // 40, y=self.main_height + 0.9 * self.header_height,
                                              anchor_x='left', anchor_y='top',
                                              color=(255, 255, 255, complement))
         self.enemies_lbl.draw()
         self.score_lbl = pyglet.text.Label("Score: " + ("" if not self.model else str(self.model.points)),
                                            font_name='8Bit Wonder',
-                                           font_size=self.main_width // 60,
+                                           font_size=self.main_width // 65,
                                            width=self.main_width, height=self.header_height,
-                                           x=21 * self.main_width // 40, y=self.main_height + self.header_height,
+                                           x=18 * self.main_width // 40, y=self.main_height + 0.9 * self.header_height,
                                            anchor_x='left', anchor_y='top',
                                            color=(255, 255, 255, complement))
         self.score_lbl.draw()
+        self.high_score_lbl = pyglet.text.Label("Highscore: " + ("" if not self.model else str(self.model.highscore)),
+                                           font_name='8Bit Wonder',
+                                           font_size=self.main_width // 65,
+                                           width=self.main_width, height=self.header_height,
+                                           x=28 * self.main_width // 40, y=self.main_height + 0.9 * self.header_height,
+                                           anchor_x='left', anchor_y='top',
+                                           color=(255, 255, 255, complement))
+        self.high_score_lbl.draw()
 
     def play_main_menu_music(self):
         if self.main_menu_song is None:
@@ -494,6 +520,10 @@ class SpaceWindow(GameFrame):
 
     def get_pause_options(self):
         return ["CONTINUE", "RETRY", "EXIT"]
+
+    def clear_pts_and_restart(self):
+        self.model.points = 0
+        self.change_scene(self.Scene.RESTART)
 
 
 class AnimatedObject(ABC):
@@ -582,7 +612,6 @@ class FallingBlock(AnimatedObject):
 
 
 if __name__ == '__main__':
-    print("System arguments:", sys.argv)
     window = SpaceWindow(True if len(sys.argv) > 1 and str(sys.argv[1]).lower() == "true" else False)
     pyglet.clock.set_fps_limit(60)
     delta = 1.0 / 60

@@ -1,0 +1,11 @@
+delete from highscores;
+insert into highscores(_id, name, score) values(1, "REX",10000);
+insert into highscores(_id, name, score) values(2, "JME",9000);
+insert into highscores(_id, name, score) values(3, "RED",8000);
+insert into highscores(_id, name, score) values(4, "BIL",7000);
+insert into highscores(_id, name, score) values(5, "DOB",6000);
+insert into highscores(_id, name, score) values(6, "RON",5000);
+insert into highscores(_id, name, score) values(7, "RIK",4000);
+insert into highscores(_id, name, score) values(8, "FIL",3000);
+insert into highscores(_id, name, score) values(9, "MCD",2000);
+insert into highscores(_id, name, score) values(10, "DUD",1000);

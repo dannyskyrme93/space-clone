@@ -6,6 +6,8 @@ import pyglet
 import sys
 from pyglet import graphics
 from pyglet.graphics import Batch, GL_QUADS, GL_LINES
+
+from db_adapter import DataBaseAdapter
 from model import GameModel, GameEvent, GameObject
 from functools import partial
 
@@ -36,6 +38,8 @@ class GameFrame(Window):
     header_height: int = 50
 
     def __init__(self, dev_mode=False):
+        if dev_mode:
+            DataBaseAdapter().set_high_score(0)
         self.model = None
         GameFrame.dev_mode = dev_mode
         super(GameFrame, self).__init__(self.main_width, self.main_height + self.header_height, visible=False)

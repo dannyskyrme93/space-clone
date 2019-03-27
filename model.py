@@ -2,6 +2,7 @@ from pyglet.window import key
 import enum
 from random import random as rando
 from abc import ABCMeta, abstractmethod
+from db_adapter import DataBaseAdapter
 
 
 class GameModel:
@@ -38,6 +39,7 @@ class GameEvent:
         ALIEN_MOVE = 13
         PLAYER_IMG_CHANGE = 14
         GUN_JAM = 15
+        POWER_UP_COLLECT = 16
 
     def __init__(self, type_of, coordinates=None, sound=None, args=None):
         self.type = type_of
@@ -92,34 +94,36 @@ change_dict = {'points': 0, 'lives': 3, 'tick_speed': 60, 'alien_shoot_rate': 56
 
 
 class Model(GameModel):
-    PLAYER_SPEED = GameModel.MODEL_WIDTH / 200
+    PLAYER_SPEED = GameModel.MODEL_WIDTH / 130
     ALIEN_WIDTH = GameModel.MODEL_WIDTH / 25
     ALIEN_HEIGHT = GameModel.MODEL_HEIGHT / 15
     ALIEN_Y_OFF = GameModel.MODEL_HEIGHT / 30  # Offset from top of screen.
     ALIEN_X_OFF = GameModel.MODEL_WIDTH / 40  # Offset from side of screen.
     PLAYER_LIVES = 2  # TODO temp while better solution not present
 
-    def __init__(self):
+    def __init__(self, pts=0):
         super().__init__()
-        self.points = 0
+        self.points = pts
+        self.db_adapter = DataBaseAdapter()
+        self.highscore = self.db_adapter.get_high_score()
         self.game_over = False
         self.tick = 1
-        self.power_box_spawn_chance = 1
-        self.alien_shoot_chance = 0.05
-        self.tick_speed = 60
+        self.power_box_spawn_chance = 0.15
+        self.alien_shoot_chance = 0.1
+        self.tick_speed = 25
         self.time = None
         self.ALIEN_MOVE_RIGHT = True
         self.bullets = []
         self.alien_bullets = []
         self.bullet_max = 6
-        self.alien_bullet_max = 100
+        self.alien_bullet_max = 3
         self.bullet_height = Model.MODEL_HEIGHT / 19
-        self.bullet_dy = Model.MODEL_HEIGHT / 100
-        self.countdown = 15
+        self.bullet_dy = Model.MODEL_HEIGHT / 85
+        self.countdown = 10
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
-        self.overheat_constant = 100
+        self.overheat_constant = 200
         self.overheat_variable_e = 2
         self.overheat_variable_q = 2
         self.overheat_base = 2
@@ -192,8 +196,8 @@ class Model(GameModel):
             self.BOX_END += Model.MODEL_WIDTH / 40
             if self.BOX_END >= Model.MODEL_WIDTH - Model.ALIEN_X_OFF:  # Checks if box is off screen also
                 # self.events.append(GameEvent(GameEvent.EventType.EDGE_SCREEN, sound="x.mp3"))  # Alien hit screen edge
-                self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
-                self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
+                self.alien_movement_update(0, -Model.ALIEN_HEIGHT / 2)
+                self.ALIEN_MOVE_RIGHT = False
             else:
                 self.alien_movement_update(Model.MODEL_WIDTH / 40, 0)
 
@@ -203,7 +207,7 @@ class Model(GameModel):
             if self.BOX_START <= 0 + Model.ALIEN_X_OFF:
                 # self.events.append(GameEvent(GameEvent.EventType.EDGE_SCREEN, sound="x.mp3"))  # Alien hit screen edge
                 self.alien_movement_update(0, -Model.ALIEN_HEIGHT)
-                self.ALIEN_MOVE_RIGHT = not self.ALIEN_MOVE_RIGHT
+                self.ALIEN_MOVE_RIGHT = True
             else:
                 self.alien_movement_update(-Model.MODEL_WIDTH / 40, 0)
 
@@ -280,10 +284,7 @@ class Model(GameModel):
                 if self.tick % 10 == 0:
                     if self.input:
                         self.player.is_active = False
-                        if self.aliens == 1:
-                            self.aliens = "Unluck"
-                        else:
-                            self.aliens = "/"
+                        self.aliens = "-"
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_DEATH, coordinates=self.player_center))
 
                     self.key_neutraliser()
@@ -291,8 +292,10 @@ class Model(GameModel):
             else:
                 Model.PLAYER_LIVES -= 1
                 self.events.append(GameEvent(GameEvent.EventType.LIFE_LOST, args=self.player_lives))
-
-                if Model.PLAYER_LIVES == 0:  # TODO temp while player lives not implemented
+                if Model.PLAYER_LIVES == 0:
+                    if self.points > self.highscore:
+                        self.highscore = self.points
+                        self.db_adapter.set_high_score(self.points)
                     self.events.append(GameEvent(GameEvent.EventType.GAME_OVER))
                     self.game_over = True
                     Model.PLAYER_LIVES = 2
@@ -301,9 +304,9 @@ class Model(GameModel):
 
         elif self.player.is_active and type(self.aliens) == int and self.aliens <= 0:  # Player defeated aliens
             self.events.append(GameEvent(
-                GameEvent.EventType.NEXT_LEVEL))  # reset screen with next level, tick speed faster, more bullets from aliens
+                GameEvent.EventType.NEXT_LEVEL))
 
-    def alien_ending(self, rand=0):  # TODO work out why aliens aren't leaving screen smoothly
+    def alien_ending(self, rand=0):
         for mob in self.objects:
             if rand:
                 self.alien_shoot(mob)
@@ -341,11 +344,13 @@ class Model(GameModel):
 
             if self.hitbox_check(box, self.player):
                 self.boxes.remove(box)
-                pass  # Player power up
+                self.events.append(GameEvent(GameEvent.EventType.POWER_UP_COLLECT,
+                                             (self.player.x, self.player.y + 1.5 * self.player.height)))
+                self.points += 500
 
     def power_box_spawn(self, mob):
         self.boxes.append(Box(mob.x + mob.width * 0.25, mob.y + mob.height * 0.25, mob.width * 0.5, mob.height * 0.5,
-                              "tom hanks.jpg", Box.BoxType.SHOOT_FAST))
+                              "pickup.png", Box.BoxType.SHOOT_FAST))
 
     def update_position(self, obj, dx, dy):
         obj.dx = dx
@@ -379,9 +384,9 @@ class Model(GameModel):
 
     def timekeeper(self):
         if self.q_countdown > 0:
-            self.q_countdown -= 1
+            self.q_countdown -= 1.2
         if self.e_countdown > 0:
-            self.e_countdown -= 1
+            self.e_countdown -= 1.2
         self.tick += 1
 
     def real_timer(self, dt, time):
@@ -445,6 +450,7 @@ class Model(GameModel):
         if action_type == view.KEY_PRESS:
             if self.game_over:
                 if key_val == key.SPACE:
+                    self.points = 0
                     self.events.append(GameEvent(GameEvent.EventType.RESET_SCREEN))
 
                 elif key_val == key.R:
@@ -462,6 +468,7 @@ class Model(GameModel):
                 elif key_val == key.Q:
                     print("Wow! The Q has been pressed")
                     if self.q_jam:
+                        self.events.append(GameEvent(GameEvent.EventType.GUN_JAM))
                         print('jammin')
                         if self.q_countdown <= 0:
                             print("unjammed", self.q_countdown)
@@ -527,5 +534,5 @@ class Model(GameModel):
                     if self.keys_pressed < 0:
                         self.keys_pressed = 0
                     if not self.controller_logic('release'):
-                        self.player.dx += (1 if self.player.dx < 0 else -1) * Model.PLAYER_SPEED
+                        self.player.dx += (1 if key_val == key.LEFT else -1) * Model.PLAYER_SPEED
 
