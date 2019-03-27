@@ -119,19 +119,20 @@ class Model(GameModel):
         self.alien_bullet_max = 3
         self.bullet_height = Model.MODEL_HEIGHT / 19
         self.bullet_dy = Model.MODEL_HEIGHT / 85
-        self.countdown = 10
+        self.countdown = 5  # Change for addition to timer in first heat phase
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
-        self.overheat_constant = 200
-        self.overheat_variable_e = 2
-        self.overheat_variable_q = 2
-        self.overheat_base = 2
+        self.overheat_constant = 80   # Change for overheat_constant / overheat_variable added to countdown in action
+        self.overheat_variable_e = 2  # ""                                            ""
+        self.overheat_variable_q = 2  # ""                                            ""
+        self.overheat_base = 2  # Used for reference in action
         self.q_jam = False
         self.e_jam = False
         self.keys_pressed = 0
         self.boxes = []
         self.events = []
+
         self.objects = []  # list of Game Objects, will automatically draw on screen
         self.player = Player(self.MODEL_WIDTH / 2, self.MODEL_WIDTH / 20,
                              self.ALIEN_WIDTH, self.ALIEN_HEIGHT, "x-wing.png")
@@ -430,12 +431,12 @@ class Model(GameModel):
         counter = 0
         while i < len(self.heat_phases) - 1 and counter < 2:
             if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i+1] and i != self.q_heat_phase:
-                self.overheat_variable_q = i + self.overheat_base
+                self.overheat_variable_q = i + self.overheat_base  # TODO overheat_variable_q changed here
                 self.q_heat_phase = i
                 counter += 1
                 print(f'q_heat phase changed to {i}', self.q_countdown)
             if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i+1] and i != self.e_heat_phase:
-                self.overheat_variable_e = i + self.overheat_base
+                self.overheat_variable_e = i + self.overheat_base  # TODO overheat_variable_e changed here
                 self.e_heat_phase = i
                 counter += 1
                 print(f'e_heat phase changed to {i}', self.e_countdown)
@@ -467,18 +468,18 @@ class Model(GameModel):
 
                 elif key_val == key.Q:
                     print("Wow! The Q has been pressed")
-                    if self.q_jam:
+                    if self.q_jam:  # if jammed
                         self.events.append(GameEvent(GameEvent.EventType.GUN_JAM))
                         print('jammin')
                         if self.q_countdown <= 0:
                             print("unjammed", self.q_countdown)
                             self.q_jam = False
 
-                    elif self.q_countdown > 0:
-                        if self.overheat_variable_q == self.overheat_base:
-                            self.q_countdown += self.countdown + self.overheat_constant / self.overheat_variable_q
-                        else:
-                            self.q_countdown += self.overheat_constant / self.overheat_variable_q
+                    elif self.q_countdown > 0:  # normal flow
+                        if self.overheat_variable_q == self.overheat_base:  # If overheat timer in first phase
+                            self.q_countdown += self.countdown + self.overheat_constant / self.overheat_variable_q  # Intended for initial fire.
+                        else:                                                                      # This is place where time is added to countdown.
+                            self.q_countdown += self.overheat_constant / self.overheat_variable_q  # For times when heat phase > 1.
 
                         self.overheat_variable_q += 1
                         if self.overheat_variable_q >= self.overheat_base + self.bullet_max:
