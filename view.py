@@ -27,12 +27,25 @@ class SpaceWindow(GameFrame):
         DEV_RESET = 8
         PAUSED = 9
 
+    class Sprites:
+        PLAYER = "x-wing.png"
+        ALIEN = "alien.png"
+        PLAYER_BURNT = "x-wing_burnt.png"
+        PLAYER_VERY_BURNT = "x-wing_very_burnt.png"
+        PICKUP = "pickup.png"
+
+        def get_sprite_names(self):
+            return [self.PLAYER, self.ALIEN, self.PLAYER_BURNT, self.PLAYER_VERY_BURNT, self.PICKUP]
+
+
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
     MAIN_BTN_WIDTH_PERCENT, MAIN_BTN_HEIGHT_PERCENT, MAIN_BTN_LBLS_PADDING_Y_PERCENT = 0.25, 0.1, 0.1
     STAR_MOVE_SPEED = 3
     STAR_SIZE = 1
     COOLDOWN = 120
+    MAX_GLOW_INTENSITY = 200
+    GLOW_INTENSITY_REDUCTION_RATE = 4
 
     def __init__(self, dev_mode=False):
         super(SpaceWindow, self).__init__(dev_mode)
@@ -41,6 +54,7 @@ class SpaceWindow(GameFrame):
         self.player_glow_colour = [255, 255, 255]
         self.max_cooldown = SpaceWindow.COOLDOWN
         self.cooldown = self.max_cooldown
+        self.player_glow_intensity = 0
         self.menu_grad_motion = 0
         self.large_txt_size = self.main_width // 30
         self.medium_txt_size = self.main_width // 40
@@ -98,6 +112,7 @@ class SpaceWindow(GameFrame):
                 colours = [4 * col for col in PixelSpillBlock.FLAME_COLOURS]
                 self.trigger_pixel_spill(self.to_screen_x(ev.coordinates[0]), self.to_screen_y(ev.coordinates[1]),
                                          colours, 1, 0.66)
+                self.player_glow_intensity = self.MAX_GLOW_INTENSITY
             elif ev.type == GameEvent.EventType.GAME_OVER:
                 self.change_scene(self.Scene.GAME_OVER)
             elif ev.type == GameEvent.EventType.EXIT_MENU:
@@ -113,9 +128,10 @@ class SpaceWindow(GameFrame):
             elif ev.type == GameEvent.EventType.POWER_UP_COLLECT:
                 self.pt_lbls.append(FadingPoints('1000', self.to_screen_x(ev.coordinates[0]),
                                                  self.to_screen_y(ev.coordinates[1])))
+                self.player_glow_intensity = self.MAX_GLOW_INTENSITY
                 self.player_glow_colour = [0, 0, 255]
             elif ev.type == GameEvent.EventType.GUN_JAM:
-                self.player_glow_colour = [255, 0, 255]
+                self.player_glow_intensity = self.MAX_GLOW_INTENSITY
             if not GameFrame.dev_mode and hasattr(ev, 'sound') and ev.sound is not None:
                 self.play_sound(ev.sound)
             self.model.events = []
@@ -154,10 +170,11 @@ class SpaceWindow(GameFrame):
                 self.set_mouse_visible(True)
             elif scene == self.Scene.CLOSING:
                 sys.exit()
-            print("Screen scene: change: ", self.scene, "->", scene)
             self.scene = scene
 
     def update(self, dt):
+        if self.player_glow_intensity > 0:
+            self.player_glow_intensity -= self.GLOW_INTENSITY_REDUCTION_RATE
         for i in range(0, 3):
             if self.player_glow_colour[i] < 255:
                 nxt = self.player_glow_colour[i] + 4
@@ -180,8 +197,9 @@ class SpaceWindow(GameFrame):
         elif self.scene == self.Scene.GAME_OVER:
             self.trigger_events()
         elif self.scene == self.Scene.NEXT_LEVEL or self.scene == self.Scene.RESTART:
+            difficulty = self.model.difficulty + 1 if self.scene == self.Scene.NEXT_LEVEL else 0
             if self.cooldown <= 0:
-                self.model = Model(self.model.points)
+                self.model = Model(self.model.points, difficulty)
                 self.change_scene(self.Scene.PLAYING)
 
     def set_model(self):
@@ -282,7 +300,6 @@ class SpaceWindow(GameFrame):
             self.clear()
             self.draw_stars()
             self.draw_header()
-
             self.draw_pixel_spills()
             self.draw_falling_parts()
             self.draw_point_lbls()
@@ -305,9 +322,15 @@ class SpaceWindow(GameFrame):
         self.rendered_sprite = []
         ship = self.model.player
         if ship.is_active:
+            colour = self.player_glow_colour
+            if self.model.player.is_blown:
+                colour = [255, 0, 0]
+
+            elif self.model.q_jam or self.model.e_jam:
+                colour = [255, 0, 255]
             self.draw_illumination(self.to_screen_x(ship.x + ship.width // 2),
-            self.to_screen_y(ship.y), 150 + (255 - self.player_glow_colour[0]) / 2,
-                                   [255, 0, 0] if self.model.player.is_blown else self.player_glow_colour)
+            self.to_screen_y(ship.y), 150 + self.player_glow_intensity,
+                                   colour)
             player_batch = Batch()
             player_sprite = self.get_rendered_sprite(ship, player_batch)
             self.rendered_sprite.append(player_sprite)
@@ -344,9 +367,7 @@ class SpaceWindow(GameFrame):
 
     def get_rendered_sprite(self, obj: GameObject, sprite_batch: Batch):
         if obj.img_name not in self.img_base.keys():
-            img_path = "img/" + obj.img_name
-            stream = open(img_path, 'rb')
-            self.img_base[obj.img_name] = pyglet.image.load(img_path, file=stream)
+            self.render_sprite(obj)
         sprite = pyglet.sprite.Sprite(img=self.img_base[obj.img_name], batch=sprite_batch)
         sprite.x = self.main_width * (obj.x / self.model.MODEL_WIDTH)
         sprite.y = self.main_height * (obj.y / self.model.MODEL_HEIGHT)
@@ -356,6 +377,16 @@ class SpaceWindow(GameFrame):
         sprite.scale_x = tgt_x * self.main_width / sprite.width
         sprite.scale_y = tgt_y * self.height / sprite.height
         return sprite
+
+    def render_sprites(self):
+        for obj in self.Sprites.get_sprite_names():
+            self.render_sprite(obj)
+
+    def render_sprite(self, obj):
+        img_path = "img/" + obj.img_name
+        stream = open(img_path, 'rb')
+        self.img_base[obj.img_name] = pyglet.image.load(img_path, file=stream)
+
 
     def draw_point_lbls(self):
         pts: FadingPoints
@@ -445,7 +476,7 @@ class SpaceWindow(GameFrame):
         for x, y in self.model.alien_bullets:
             self.draw_illumination(self.to_screen_x(x), self.to_screen_y(y), 6 * radius, purple)
             circ_pts = [self.to_screen_x(x), self.to_screen_y(y) + radius]
-            for theta in np.linspace(0, 2 * math.pi, 10):
+            for theta in np.linspace(0, 2 * math.pi, 8):
                 error = random.randint(-1 * radius // 4, radius // 4)
                 circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
                                  circ_pts[1] + (radius + error) * math.cos(theta)])
@@ -459,7 +490,7 @@ class SpaceWindow(GameFrame):
 
     def draw_illumination(self, x, y, radius, colors):
         circ_pts = [x, y + self.height * self.BULLET_HEIGHT_PERCENT // 2]
-        for theta in np.linspace(0, 2 * math.pi, 5):
+        for theta in np.linspace(0, 2 * math.pi, 10):
             error = 0
             circ_pts.extend([circ_pts[0] + (radius + error) * math.sin(theta),
                              circ_pts[1] + (radius + error) * math.cos(theta)])

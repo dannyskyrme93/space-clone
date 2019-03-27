@@ -100,9 +100,16 @@ class Model(GameModel):
     ALIEN_Y_OFF = GameModel.MODEL_HEIGHT / 30  # Offset from top of screen.
     ALIEN_X_OFF = GameModel.MODEL_WIDTH / 40  # Offset from side of screen.
     PLAYER_LIVES = 2  # TODO temp while better solution not present
+    HEAT_RECOVERY_RATE = 15
+    OVERHEAT_THRESHOLD = 5
+    LAST_STAND_THREASHOLD_RISE = 2
+    PLAYER_BULLET_SPEED = 0.012
+    BASE_ALIEN_BULLET_SPEED = 0.01
+    DELTA_BULLET_SPEED_ON_DIFF = 0.002
 
-    def __init__(self, pts=0):
+    def __init__(self, pts=0, difficulty=0):
         super().__init__()
+        self.difficulty = difficulty
         self.points = pts
         self.db_adapter = DataBaseAdapter()
         self.highscore = self.db_adapter.get_high_score()
@@ -118,8 +125,9 @@ class Model(GameModel):
         self.bullet_max = 6
         self.alien_bullet_max = 3
         self.bullet_height = Model.MODEL_HEIGHT / 19
-        self.bullet_dy = Model.MODEL_HEIGHT / 85
-        self.countdown = 10  # Change for addition to timer in first heat phase
+        self.alien_bullet_dy = (self.BASE_ALIEN_BULLET_SPEED + self.difficulty * self.DELTA_BULLET_SPEED_ON_DIFF) * Model.MODEL_HEIGHT
+        self.player_bullet_dy = self.PLAYER_BULLET_SPEED * Model.MODEL_HEIGHT
+        self.countdown = 1000  # Change for addition to timer in first heat phase
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
@@ -319,7 +327,7 @@ class Model(GameModel):
 
     def alien_bullet_update(self):
         for bullet in self.alien_bullets:
-            bullet[1] -= self.bullet_dy
+            bullet[1] -= self.alien_bullet_dy
 
             if bullet[1] <= 0:
                 self.alien_bullets.remove(bullet)
@@ -329,7 +337,7 @@ class Model(GameModel):
 
     def bullet_update(self):
         for bullet in self.bullets:
-            bullet[1] += self.bullet_dy
+            bullet[1] += self.player_bullet_dy
 
             if bullet[1] >= Model.MODEL_HEIGHT:
                 self.bullets.remove(bullet)
@@ -385,13 +393,15 @@ class Model(GameModel):
 
     def timekeeper(self):
         if self.q_countdown > 0:
-            self.q_countdown -= 1.2
+            self.q_countdown -= self.HEAT_RECOVERY_RATE
         else:
             self.q_countdown = self.countdown
+            self.q_jam = False
         if self.e_countdown > 0:
-            self.e_countdown -= 1.2
+            self.e_countdown -= self.HEAT_RECOVERY_RATE
         else:
             self.e_countdown = self.countdown
+            self.e_jam = False
         self.tick += 1
 
     def real_timer(self, dt, time):
@@ -487,7 +497,8 @@ class Model(GameModel):
                             self.q_countdown += self.overheat_constant / self.overheat_variable_q  # For times when heat phase > 1.
 
                         self.overheat_variable_q += 1
-                        if self.overheat_variable_q >= self.overheat_base + self.bullet_max:
+                        if self.overheat_variable_q >= self.overheat_base + self.OVERHEAT_THRESHOLD \
+                                + self.LAST_STAND_THREASHOLD_RISE *(1 if self.player.is_blown else 0):
                             self.q_jam = True
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
@@ -510,7 +521,8 @@ class Model(GameModel):
                             self.e_countdown += self.overheat_constant / self.overheat_variable_e
 
                         self.overheat_variable_e += 1
-                        if self.overheat_variable_e >= self.overheat_base + self.bullet_max:
+                        if self.overheat_variable_e >= self.overheat_base + self.OVERHEAT_THRESHOLD \
+                                + self.LAST_STAND_THREASHOLD_RISE * (1 if self.player.is_blown else 0):
                             self.e_jam = True
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])

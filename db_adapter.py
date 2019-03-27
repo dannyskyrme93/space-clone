@@ -6,9 +6,10 @@ class DataBaseAdapter:
     HIGH_SCORE_DB_NAME = "highscores"
     COLUMN_SCORE = "score"
 
+
     def create_connection(self):
         try:
-            return sqlite3.connect(DataBaseAdapter.DB_FILE_NAME)
+            return sqlite3.connect(DataBaseAdapter.DB_FILE_NAME, timeout=10)
         except sqlite3.Error as e:
             print(e)
         return None
@@ -23,7 +24,6 @@ class DataBaseAdapter:
         if len(rows) == 0:
             self.set_high_score(0)
             return 0
-        print(rows)
         connection.close()
         return rows[0][0]
 
@@ -39,8 +39,3 @@ class DataBaseAdapter:
         cursor.executescript(script)
         connection.commit()
         connection.close()
-
-
-if __name__ == '__main__':
-    adapter = DataBaseAdapter()
-    print(adapter.get_high_score())
