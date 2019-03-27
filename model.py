@@ -119,11 +119,11 @@ class Model(GameModel):
         self.alien_bullet_max = 3
         self.bullet_height = Model.MODEL_HEIGHT / 19
         self.bullet_dy = Model.MODEL_HEIGHT / 85
-        self.countdown = 5  # Change for addition to timer in first heat phase
+        self.countdown = 10  # Change for addition to timer in first heat phase
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
-        self.overheat_constant = 80   # Change for overheat_constant / overheat_variable added to countdown in action
+        self.overheat_constant = 60   # Change for overheat_constant / overheat_variable added to countdown in action
         self.overheat_variable_e = 2  # ""                                            ""
         self.overheat_variable_q = 2  # ""                                            ""
         self.overheat_base = 2  # Used for reference in action
@@ -386,8 +386,12 @@ class Model(GameModel):
     def timekeeper(self):
         if self.q_countdown > 0:
             self.q_countdown -= 1.2
+        else:
+            self.q_countdown = self.countdown
         if self.e_countdown > 0:
             self.e_countdown -= 1.2
+        else:
+            self.e_countdown = self.countdown
         self.tick += 1
 
     def real_timer(self, dt, time):
@@ -467,6 +471,7 @@ class Model(GameModel):
                             self.player.dx += Model.PLAYER_SPEED
 
                 elif key_val == key.Q:
+                    print(self.q_countdown)
                     print("Wow! The Q has been pressed")
                     if self.q_jam:  # if jammed
                         self.events.append(GameEvent(GameEvent.EventType.GUN_JAM))
@@ -489,7 +494,6 @@ class Model(GameModel):
 
                     else:
                         print('q_success')
-                        self.q_countdown = self.countdown
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
 
@@ -513,7 +517,6 @@ class Model(GameModel):
 
                     else:
                         print('e_success')
-                        self.e_countdown = self.countdown
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x2_ship, self.player.y + y_ship])
 
