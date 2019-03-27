@@ -132,9 +132,10 @@ class Model(GameModel):
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
         self.overheat_constant = 60   # Change for overheat_constant / overheat_variable added to countdown in action
-        self.overheat_variable_e = 2  # ""                                            ""
-        self.overheat_variable_q = 2  # ""                                            ""
-        self.overheat_base = 2  # Used for reference in action
+        self.overheat_base = 2  # Used for reference in action        |                 |
+        self.overheat_variable_e = self.overheat_base  # ""                                            ""
+        self.overheat_variable_q = self.overheat_base  # ""                                            ""
+
         self.q_jam = False
         self.e_jam = False
         self.keys_pressed = 0
