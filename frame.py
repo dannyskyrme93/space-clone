@@ -10,8 +10,16 @@ from pyglet.graphics import Batch, GL_QUADS, GL_LINES
 from db_adapter import DataBaseAdapter
 from model import GameModel, GameEvent, GameObject
 from functools import partial
+import os
 
 KEY_PRESS, KEY_RELEASE = 0, 1
+
+"""frame.py: Parent class of game frame."""
+
+__author__ = "Daniel Skyrme, Joe Lovell"
+__licence__ = "GNU General Public License v3.0"
+__email__ = "danielskyrme@hotmail.com"
+__credits__ = ["Joe Lovell"]
 
 
 class GameFrame(Window):
@@ -88,7 +96,8 @@ class GameFrame(Window):
             self.model.action(symbol, KEY_RELEASE)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if button == mouse.LEFT and self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS, self.Scene.PAUSED}:
+        if button == mouse.LEFT and self.scene in {self.Scene.MAIN_MENU, self.Scene.MAIN_MENU_WITH_OPTIONS,
+                                                   self.Scene.PAUSED}:
             self.menu_mouse_action(x, y)
 
     def on_draw(self):
@@ -297,7 +306,8 @@ class GameFrame(Window):
 
     def play_sound(self, sound_name: str, x=None):
         if self.settings.has_sound:
-            src: pyglet.media.Player = pyglet.media.StaticSource(pyglet.media.load("audio/" + sound_name))
+            path = os.path.dirname(os.path.realpath(__file__))
+            src: pyglet.media.Player = pyglet.media.StaticSource(pyglet.media.load(path + "/audio/" + sound_name))
             to_rtn: pyglet.media.Player = src.play()
             return to_rtn
 

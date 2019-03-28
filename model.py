@@ -4,6 +4,13 @@ from random import random as rando
 from abc import ABCMeta, abstractmethod
 from db_adapter import DataBaseAdapter
 
+"""view.py: Front end."""
+
+__author__ = "Joe Lovell, Daniel Skyrme"
+__licence__ = "GNU General Public License v3.0"
+__email__ = "danielskyrme@hotmail.com"
+__credits__ = ["Daniel Skyrme"]
+
 
 class GameModel:
     MODEL_WIDTH = 800
@@ -125,13 +132,14 @@ class Model(GameModel):
         self.bullet_max = 6
         self.alien_bullet_max = 3
         self.bullet_height = Model.MODEL_HEIGHT / 19
-        self.alien_bullet_dy = (self.BASE_ALIEN_BULLET_SPEED + self.difficulty * self.DELTA_BULLET_SPEED_ON_DIFF) * Model.MODEL_HEIGHT
+        self.alien_bullet_dy = (
+                                           self.BASE_ALIEN_BULLET_SPEED + self.difficulty * self.DELTA_BULLET_SPEED_ON_DIFF) * Model.MODEL_HEIGHT
         self.player_bullet_dy = self.PLAYER_BULLET_SPEED * Model.MODEL_HEIGHT
         self.countdown = 1000  # Change for addition to timer in first heat phase
         self.input = True
         self.q_countdown = self.countdown
         self.e_countdown = self.countdown
-        self.overheat_constant = 60   # Change for overheat_constant / overheat_variable added to countdown in action
+        self.overheat_constant = 60  # Change for overheat_constant / overheat_variable added to countdown in action
         self.overheat_base = 2  # Used for reference in action        |                 |
         self.overheat_variable_e = self.overheat_base  # ""                                            ""
         self.overheat_variable_q = self.overheat_base  # ""                                            ""
@@ -190,7 +198,8 @@ class Model(GameModel):
         return self.events
 
     def alien_shoot(self, mob):
-        if rando() <= self.alien_shoot_chance and len(self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
+        if rando() <= self.alien_shoot_chance and len(
+                self.alien_bullets) < self.alien_bullet_max and mob.y >= Model.MODEL_HEIGHT / 3:
             self.alien_bullets.append([mob.x + mob.width / 2, mob.y + mob.height / 2])
             self.events.append(GameEvent(GameEvent.EventType.ALIEN_1_FIRE, sound="bomb1.mp3"))
 
@@ -445,12 +454,12 @@ class Model(GameModel):
         i = 0
         counter = 0
         while i < len(self.heat_phases) - 1 and counter < 2:
-            if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i+1] and i != self.q_heat_phase:
+            if self.heat_phases[i] < self.q_countdown <= self.heat_phases[i + 1] and i != self.q_heat_phase:
                 self.overheat_variable_q = i + self.overheat_base  # TODO overheat_variable_q changed here
                 self.q_heat_phase = i
                 counter += 1
                 print(f'q_heat phase changed to {i}', self.q_countdown)
-            if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i+1] and i != self.e_heat_phase:
+            if self.heat_phases[i] < self.e_countdown <= self.heat_phases[i + 1] and i != self.e_heat_phase:
                 self.overheat_variable_e = i + self.overheat_base  # TODO overheat_variable_e changed here
                 self.e_heat_phase = i
                 counter += 1
@@ -494,12 +503,12 @@ class Model(GameModel):
                     elif self.q_countdown > 0:  # normal flow
                         if self.overheat_variable_q == self.overheat_base:  # If overheat timer in first phase
                             self.q_countdown += self.countdown + self.overheat_constant / self.overheat_variable_q  # Intended for initial fire.
-                        else:                                                                      # This is place where time is added to countdown.
+                        else:  # This is place where time is added to countdown.
                             self.q_countdown += self.overheat_constant / self.overheat_variable_q  # For times when heat phase > 1.
 
                         self.overheat_variable_q += 1
                         if self.overheat_variable_q >= self.overheat_base + self.OVERHEAT_THRESHOLD \
-                                + self.LAST_STAND_THREASHOLD_RISE *(1 if self.player.is_blown else 0):
+                                + self.LAST_STAND_THREASHOLD_RISE * (1 if self.player.is_blown else 0):
                             self.q_jam = True
                         self.events.append(GameEvent(GameEvent.EventType.PLAYER_FIRE, sound="laser1.mp3"))
                         self.bullets.append([self.player.x + x1_ship, self.player.y + y_ship])
@@ -552,4 +561,3 @@ class Model(GameModel):
                         self.keys_pressed = 0
                     if not self.controller_logic('release'):
                         self.player.dx += (1 if key_val == key.LEFT else -1) * Model.PLAYER_SPEED
-

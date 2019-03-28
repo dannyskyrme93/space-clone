@@ -10,8 +10,16 @@ from functools import partial
 from enum import Enum
 from abc import ABC, abstractmethod
 from db_adapter import DataBaseAdapter
+import os
 
 KEY_PRESS, KEY_RELEASE = 0, 1
+
+"""view.py: Front end."""
+
+__author__ = "Daniel Skyrme, Joe Lovell"
+__licence__ = "GNU General Public License v3.0"
+__email__ = "danielskyrme@hotmail.com"
+__credits__ = ["Joe Lovell"]
 
 
 class SpaceWindow(GameFrame):
@@ -36,7 +44,6 @@ class SpaceWindow(GameFrame):
 
         def get_sprite_names(self):
             return [self.PLAYER, self.ALIEN, self.PLAYER_BURNT, self.PLAYER_VERY_BURNT, self.PICKUP]
-
 
     BULLET_HEIGHT_PERCENT = 0.015
     BULLET_RADIUS_PERCENT = 0.006
@@ -329,7 +336,7 @@ class SpaceWindow(GameFrame):
             elif self.model.q_jam or self.model.e_jam:
                 colour = [255, 0, 255]
             self.draw_illumination(self.to_screen_x(ship.x + ship.width // 2),
-            self.to_screen_y(ship.y), 150 + self.player_glow_intensity,
+                                   self.to_screen_y(ship.y), 150 + self.player_glow_intensity,
                                    colour)
             player_batch = Batch()
             player_sprite = self.get_rendered_sprite(ship, player_batch)
@@ -386,7 +393,6 @@ class SpaceWindow(GameFrame):
         img_path = "img/" + obj.img_name
         stream = open(img_path, 'rb')
         self.img_base[obj.img_name] = pyglet.image.load(img_path, file=stream)
-
 
     def draw_point_lbls(self):
         pts: FadingPoints
@@ -534,12 +540,13 @@ class SpaceWindow(GameFrame):
                                            color=(255, 255, 255, complement))
         self.score_lbl.draw()
         self.high_score_lbl = pyglet.text.Label("Highscore: " + ("" if not self.model else str(self.model.highscore)),
-                                           font_name='8Bit Wonder',
-                                           font_size=self.main_width // 65,
-                                           width=self.main_width, height=self.header_height,
-                                           x=28 * self.main_width // 40, y=self.main_height + 0.9 * self.header_height,
-                                           anchor_x='left', anchor_y='top',
-                                           color=(255, 255, 255, complement))
+                                                font_name='8Bit Wonder',
+                                                font_size=self.main_width // 65,
+                                                width=self.main_width, height=self.header_height,
+                                                x=28 * self.main_width // 40,
+                                                y=self.main_height + 0.9 * self.header_height,
+                                                anchor_x='left', anchor_y='top',
+                                                color=(255, 255, 255, complement))
         self.high_score_lbl.draw()
 
     def play_main_menu_music(self):

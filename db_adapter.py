@@ -1,11 +1,17 @@
 import sqlite3
 
+"""db_adapter.py: Manages access to sqlite database """
+
+__author__ = "Daniel Skyrme, Joe Lovell"
+__licence__ = "GNU General Public License v3.0"
+__email__ = "danielskyrme@hotmail.com"
+__credits__ = ["Joe Lovell"]
+
 
 class DataBaseAdapter:
     DB_FILE_NAME = "res/space_clones.db"
     HIGH_SCORE_DB_NAME = "highscores"
     COLUMN_SCORE = "score"
-
 
     def create_connection(self):
         try:
